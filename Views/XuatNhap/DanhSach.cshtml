@@ -1,0 +1,90 @@
+@{
+    ViewData["Title"] = "Xuất danh sách sinh viên";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-file-earmark-arrow-down me-2"></i>Xuất danh sách sinh viên</h4>
+    <span class="badge bg-light text-primary border"><i class="bi bi-code-slash"></i> fetch() + Skip/Take</span>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form id="formDanhSach" class="row g-2 align-items-end">
+            <div class="col-12">
+                <label for="txtKeyword" class="form-label">Tìm kiếm</label>
+                <input type="search" id="txtKeyword" name="keyword" class="form-control" maxlength="100"
+                       placeholder="Nhập tên hoặc mã sinh viên (không cần dấu, VD: nguyen)" autocomplete="off" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="selKhoa" class="form-label">Khoa</label>
+                <select id="selKhoa" name="maKhoa" class="form-select"><option value="">Tất cả</option></select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="selKhoaHoc" class="form-label">Khóa</label>
+                <select id="selKhoaHoc" name="maKhoaHoc" class="form-select"><option value="">Tất cả</option></select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="selLop" class="form-label">Lớp</label>
+                <select id="selLop" name="maLop" class="form-select"><option value="">Tất cả</option></select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="selTrangThai" class="form-label">Trạng thái</label>
+                <select id="selTrangThai" name="trangThai" class="form-select">
+                    <option value="">Tất cả</option>
+                    <option value="0">Đang học</option>
+                    <option value="1">Bảo lưu</option>
+                    <option value="2">Thôi học</option>
+                    <option value="3">Đã tốt nghiệp</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="selPageSize" class="form-label">Số dòng/trang</label>
+                <select id="selPageSize" class="form-select">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
+    <div>
+        <span id="dsTotal" class="small fw-semibold me-2"></span>
+        <span id="dsStatus" class="small text-muted" aria-live="polite"></span>
+    </div>
+    <div class="btn-group">
+        <button type="button" id="btnXuatExcel" class="btn btn-sm btn-success"><i class="bi bi-file-earmark-excel me-1"></i>Xuất Excel</button>
+        <button type="button" id="btnXuatPdf" class="btn btn-sm btn-danger"><i class="bi bi-file-earmark-pdf me-1"></i>Xuất PDF</button>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Mã SV</th>
+                    <th>Họ tên</th>
+                    <th>Ngày sinh</th>
+                    <th>Giới tính</th>
+                    <th>Lớp</th>
+                    <th>SĐT</th>
+                    <th>Email</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody id="dsBody"></tbody>
+        </table>
+    </div>
+    <nav class="card-footer bg-white" aria-label="Phân trang danh sách">
+        <ul id="dsPaging" class="pagination pagination-sm justify-content-end mb-0"></ul>
+    </nav>
+</div>
+
+@section Scripts {
+    <script src="~/js/phantrang.js" asp-append-version="true"></script>
+    <script src="~/js/taifile.js" asp-append-version="true"></script>
+    <script src="~/js/danhsach.js" asp-append-version="true"></script>
+}

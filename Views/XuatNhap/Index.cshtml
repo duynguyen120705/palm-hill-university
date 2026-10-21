@@ -1,0 +1,79 @@
+@{
+    ViewData["Title"] = "Nhập danh sách sinh viên";
+}
+
+@Html.AntiForgeryToken()
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-file-earmark-arrow-up me-2"></i>Nhập danh sách sinh viên từ Excel</h4>
+    <span class="badge bg-light text-primary border"><i class="bi bi-code-slash"></i> jQuery AJAX</span>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form id="formImport" class="row g-2 align-items-end" enctype="multipart/form-data">
+            <div class="col-12 col-md-7">
+                <label for="fileExcel" class="form-label">File Excel (.xlsx, tối đa 5 MB)</label>
+                <input type="file" id="fileExcel" name="file" class="form-control" accept=".xlsx" required />
+            </div>
+            <div class="col-6 col-md-2 d-grid">
+                <button type="submit" id="btnImport" class="btn btn-primary">
+                    <span class="spinner-border spinner-border-sm me-1 d-none" id="importSpinner" role="status" aria-hidden="true"></span>
+                    <i class="bi bi-upload me-1"></i>Nhập
+                </button>
+            </div>
+            <div class="col-6 col-md-3 d-grid">
+                <a class="btn btn-outline-secondary" asp-action="MauNhap"><i class="bi bi-download me-1"></i>Tải file mẫu</a>
+            </div>
+        </form>
+        <div class="form-text mt-2">
+            Dòng có Mã SV mới sẽ tạo hồ sơ kèm tài khoản; Mã SV đã có sẽ cập nhật hồ sơ (giữ nguyên tài khoản, mật khẩu).
+            Đổi lớp/trạng thái áp dụng quy tắc chuyển lớp và chuyển trạng thái; chuyển sang Thôi học sẽ khóa tài khoản.
+        </div>
+    </div>
+</div>
+
+<div id="importResult" class="d-none mb-3">
+    <div id="importSummary" class="alert mb-2" role="status"></div>
+    <div id="importErrorsWrap" class="card shadow-sm d-none">
+        <div class="card-header bg-white fw-semibold text-danger">Các dòng lỗi</div>
+        <div class="table-responsive" style="max-height: 320px;">
+            <table class="table table-sm mb-0">
+                <thead class="table-light"><tr><th>Dòng</th><th>Mã SV</th><th>Lỗi</th></tr></thead>
+                <tbody id="importErrors"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white fw-semibold d-flex justify-content-between">
+        <span>Lịch sử nhập</span>
+        <span id="phienNhapTotal" class="text-muted fw-normal small"></span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>#</th>
+                    <th>Thời điểm</th>
+                    <th>Người nhập</th>
+                    <th>Tên file</th>
+                    <th class="text-end">Thêm mới</th>
+                    <th class="text-end">Cập nhật</th>
+                    <th class="text-end">Lỗi</th>
+                    <th class="text-center">Xóa</th>
+                </tr>
+            </thead>
+            <tbody id="phienNhapBody"></tbody>
+        </table>
+    </div>
+    <nav class="card-footer bg-white" aria-label="Phân trang lịch sử nhập">
+        <ul id="phienNhapPaging" class="pagination pagination-sm justify-content-end mb-0"></ul>
+    </nav>
+</div>
+
+@section Scripts {
+    <script src="~/js/phantrang.js" asp-append-version="true"></script>
+    <script src="~/js/xuatnhap.js" asp-append-version="true"></script>
+}

@@ -18,6 +18,7 @@ namespace StudentPortal.Data
         public DbSet<SinhVien> SinhVien { get; set; } = null!;
         public DbSet<LichSuHoSoSinhVien> LichSuHoSoSinhVien { get; set; } = null!;
         public DbSet<NhatKyThaoTac> NhatKyThaoTac { get; set; } = null!;
+        public DbSet<PhienNhap> PhienNhap { get; set; } = null!;
 
         public DbSet<Khoa> Khoas => Khoa;
         public DbSet<KhoaHoc> KhoaHocs => KhoaHoc;
@@ -25,6 +26,7 @@ namespace StudentPortal.Data
         public DbSet<SinhVien> SinhViens => SinhVien;
         public DbSet<LichSuHoSoSinhVien> LichSuHoSoSinhViens => LichSuHoSoSinhVien;
         public DbSet<NhatKyThaoTac> NhatKyThaoTacs => NhatKyThaoTac;
+        public DbSet<PhienNhap> PhienNhaps => PhienNhap;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -178,6 +180,18 @@ namespace StudentPortal.Data
                 b.HasIndex(n => n.ThoiDiem);
                 b.HasIndex(n => n.Username);
                 b.HasIndex(n => new { n.DoiTuongLoai, n.DoiTuongMa });
+            });
+
+            // 8. Cấu hình thực thể PhienNhap (lịch sử nhập Excel - FR-30)
+            builder.Entity<PhienNhap>(b =>
+            {
+                b.HasKey(p => p.Id);
+                b.Property(p => p.ThoiDiem).HasDefaultValueSql("GETUTCDATE()");
+                b.Property(p => p.Username).HasMaxLength(256).IsRequired();
+                b.Property(p => p.TenFile).HasMaxLength(255).IsRequired();
+
+                b.HasIndex(p => p.ThoiDiem);
+                b.HasIndex(p => p.Username);
             });
         }
 

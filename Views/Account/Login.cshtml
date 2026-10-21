@@ -1,0 +1,41 @@
+@model StudentPortal.Models.DTOs.DangNhapDto
+@{
+    ViewData["Title"] = "Đăng nhập";
+}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-sm-9 col-md-6 col-lg-4">
+        <div class="card shadow-sm mt-4">
+            <div class="card-body p-4">
+                <h4 class="mb-1 text-center"><i class="bi bi-mortarboard-fill text-primary me-1"></i>StudentPortal</h4>
+                <p class="text-muted text-center mb-4">Đăng nhập để tiếp tục</p>
+
+                <form asp-action="Login" method="post" novalidate>
+                    <input type="hidden" asp-for="ReturnUrl" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="UserName" class="form-label"></label>
+                        <input asp-for="UserName" class="form-control" autocomplete="username" autofocus />
+                        <span asp-validation-for="UserName" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="MatKhau" class="form-label"></label>
+                        <input asp-for="MatKhau" class="form-control" autocomplete="current-password" />
+                        <span asp-validation-for="MatKhau" class="text-danger small"></span>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <p class="text-muted small text-center mt-3">
+            Quên mật khẩu? Liên hệ Admin (tài khoản Admin/Giáo vụ) hoặc Giáo vụ khoa (tài khoản sinh viên) để được cấp lại.
+        </p>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

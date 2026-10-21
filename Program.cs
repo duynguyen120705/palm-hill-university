@@ -15,26 +15,36 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // 2. Cấu hình ASP.NET Core Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
-    // Cấu hình ràng buộc mật khẩu
+    // Cấu hình ràng buộc mật khẩu theo SRS mục 3.4: tối thiểu 8 ký tự, gồm cả chữ và số
+    // (Identity không có tùy chọn "bắt buộc chữ cái" - phần này kiểm tra ở tầng Service)
     options.Password.RequireDigit = true;
-    options.Password.RequireLowercase = true;
-    options.Password.RequireNonAlphanumeric = true;
-    options.Password.RequireUppercase = true;
-    options.Password.RequiredLength = 6;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequiredLength = 8;
 
     // Cấu hình khóa tài khoản
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.Lockout.MaxFailedAccessAttempts = 5;
     options.Lockout.AllowedForNewUsers = true;
 
-    // Cấu hình người dùng
-    options.User.RequireUniqueEmail = true;
+    // Cấu hình người dùng: SRS quy định Email sinh viên không bắt buộc nên không ép Email duy nhất ở Identity
+    options.User.RequireUniqueEmail = false;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
 // 3. Đăng ký dịch vụ MVC
 builder.Services.AddControllersWithViews();
+
+// QuestPDF (xuất PDF - FR-28, FR-29) dùng giấy phép Community
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
+// Dịch vụ nghiệp vụ (PhamViDuLieuServiceTam là bản tạm, thay khi phân hệ Tài khoản hoàn thành)
+builder.Services.AddScoped<StudentPortal.Services.IPhamViDuLieuService, StudentPortal.Services.PhamViDuLieuServiceTam>();
+builder.Services.AddScoped<StudentPortal.Services.IThongKeService, StudentPortal.Services.ThongKeService>();
+builder.Services.AddScoped<StudentPortal.Services.INhatKyService, StudentPortal.Services.NhatKyService>();
+builder.Services.AddScoped<StudentPortal.Services.IXuatNhapService, StudentPortal.Services.XuatNhapService>();
 
 var app = builder.Build();
 

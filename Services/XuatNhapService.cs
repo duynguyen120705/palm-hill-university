@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StudentPortal.Data;
 using StudentPortal.Models;
@@ -22,20 +21,19 @@ namespace StudentPortal.Services
 
         private const int SoDongToiDa = 2000;
 
-        // Quy ước mã theo dữ liệu seed: GioiTinh 0=Nữ 1=Nam 2=Khác; TrangThaiTaiKhoan 0=Khóa 1=Hoạt động
-        private const int TaiKhoanBiKhoa = 0, TaiKhoanHoatDong = 1;
+        // Quy ước mã theo dữ liệu seed: GioiTinh 0=Nữ 1=Nam 2=Khác
         private const int DangHoc = 0, BaoLuu = 1, ThoiHoc = 2, DaTotNghiep = 3;
 
         private readonly ApplicationDbContext _context;
-        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ITaiKhoanService _taiKhoan;
         private readonly IPhamViDuLieuService _phamVi;
         private readonly INhatKyService _nhatKy;
 
-        public XuatNhapService(ApplicationDbContext context, UserManager<ApplicationUser> userManager,
+        public XuatNhapService(ApplicationDbContext context, ITaiKhoanService taiKhoan,
             IPhamViDuLieuService phamVi, INhatKyService nhatKy)
         {
             _context = context;
-            _userManager = userManager;
+            _taiKhoan = taiKhoan;
             _phamVi = phamVi;
             _nhatKy = nhatKy;
         }
@@ -251,12 +249,12 @@ namespace StudentPortal.Services
         {
             var query = await _phamVi.LocSinhVienAsync(_context.SinhViens.AsNoTracking(), user);
 
-            // Collation Vietnamese_CI_AI: không phân biệt hoa thường và dấu ("nguyen" khớp "Nguyễn")
+            // Không phân biệt hoa thường và dấu ("nguyen" khớp "Nguyễn", "do" khớp "Đỗ")
             if (!string.IsNullOrWhiteSpace(filter.Keyword))
             {
                 var kw = filter.Keyword.Trim();
                 query = query.Where(s =>
-                    EF.Functions.Collate(s.HoTen, "Vietnamese_CI_AI").Contains(kw) ||
+                    EF.Functions.Collate(s.HoTen, TimKiemKhongDau.Collation).Contains(kw) ||
                     s.MaSV.Contains(kw));
             }
 
@@ -376,10 +374,8 @@ namespace StudentPortal.Services
         // Thêm hồ sơ và tài khoản trong cùng một giao dịch (theo FR-13)
         private async Task<bool> ThemMoiAsync(DongNhap d, string username)
         {
-            if (d.MatKhau == null || d.MatKhau.Length < 8 || !d.MatKhau.Any(char.IsLetter) || !d.MatKhau.Any(char.IsDigit))
-                throw new DongLoiException("Mật khẩu ban đầu tối thiểu 8 ký tự, gồm cả chữ và số.");
-            if (await _userManager.FindByNameAsync(d.MaSV) != null)
-                throw new DongLoiException("Tên đăng nhập (Mã SV) đã tồn tại.");
+            if (d.MatKhau == null)
+                throw new DongLoiException("Dòng thêm mới bắt buộc có mật khẩu ban đầu.");
 
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
@@ -400,24 +396,8 @@ namespace StudentPortal.Services
                 });
                 await _context.SaveChangesAsync();
 
-                var taiKhoan = new ApplicationUser
-                {
-                    UserName = d.MaSV,
-                    Email = d.Email,
-                    MaSV = d.MaSV,
-                    TrangThaiTaiKhoan = TaiKhoanHoatDong,
-                    LockoutEnabled = true
-                };
-                // Hồ sơ Thôi học: tài khoản bị khóa (FR-16)
-                if (d.TrangThai == ThoiHoc) KhoaTaiKhoan(taiKhoan);
-
-                var tao = await _userManager.CreateAsync(taiKhoan, d.MatKhau);
-                if (!tao.Succeeded)
-                    throw new DongLoiException("Tạo tài khoản thất bại: " + string.Join(" ", tao.Errors.Select(e => e.Description)));
-
-                var gan = await _userManager.AddToRoleAsync(taiKhoan, "SinhVien");
-                if (!gan.Succeeded)
-                    throw new DongLoiException("Gán vai trò thất bại: " + string.Join(" ", gan.Errors.Select(e => e.Description)));
+                // Hồ sơ Thôi học: tài khoản tạo ra ở trạng thái khóa (FR-16)
+                await _taiKhoan.TaoTaiKhoanSinhVienAsync(d.MaSV, d.Email, d.MatKhau, khoa: d.TrangThai == ThoiHoc);
 
                 await _nhatKy.GhiAsync(username, "ImportTaoHoSo", "SinhVien", d.MaSV);
                 await _nhatKy.GhiAsync(username, "TaoTaiKhoan", "TaiKhoan", d.MaSV);
@@ -430,6 +410,12 @@ namespace StudentPortal.Services
             {
                 await tx.RollbackAsync();
                 throw;
+            }
+            catch (NghiepVuException ex)
+            {
+                // Lỗi tạo tài khoản: rollback cả hồ sơ mới (FR-13)
+                await tx.RollbackAsync();
+                throw new DongLoiException("Tạo tài khoản thất bại: " + ex.Message);
             }
             catch (DbUpdateException)
             {
@@ -472,13 +458,10 @@ namespace StudentPortal.Services
                 // Chuyển sang Thôi học tự động khóa tài khoản (FR-16)
                 if (doiTrangThai && d.TrangThai == ThoiHoc)
                 {
-                    var taiKhoan = await _userManager.Users.FirstOrDefaultAsync(u => u.MaSV == sv.MaSV);
-                    if (taiKhoan != null)
+                    var taiKhoan = await _taiKhoan.TimTheoMaSVAsync(sv.MaSV);
+                    if (taiKhoan != null && taiKhoan.TrangThaiTaiKhoan != ITaiKhoanService.BiKhoa)
                     {
-                        KhoaTaiKhoan(taiKhoan);
-                        var capNhat = await _userManager.UpdateAsync(taiKhoan);
-                        if (!capNhat.Succeeded)
-                            throw new DongLoiException("Không khóa được tài khoản sinh viên Thôi học.");
+                        await _taiKhoan.KhoaAsync(taiKhoan);
                         await _nhatKy.GhiAsync(username, "KhoaTaiKhoan", "TaiKhoan", taiKhoan.UserName ?? sv.MaSV);
                     }
                 }
@@ -490,6 +473,11 @@ namespace StudentPortal.Services
             {
                 await tx.RollbackAsync();
                 throw;
+            }
+            catch (NghiepVuException)
+            {
+                await tx.RollbackAsync();
+                throw new DongLoiException("Không khóa được tài khoản sinh viên Thôi học.");
             }
             catch (DbUpdateException)
             {
@@ -514,13 +502,6 @@ namespace StudentPortal.Services
                 default:
                     return "Chuyển trạng thái không hợp lệ theo quy tắc FR-16.";
             }
-        }
-
-        // Khóa tài khoản theo cùng cách với dữ liệu seed
-        private static void KhoaTaiKhoan(ApplicationUser taiKhoan)
-        {
-            taiKhoan.TrangThaiTaiKhoan = TaiKhoanBiKhoa;
-            taiKhoan.LockoutEnd = DateTimeOffset.MaxValue;
         }
 
         private static DateTime? DocNgay(IXLCell cell)

@@ -114,8 +114,8 @@ Các bước giống nhau ở cả ba công cụ là phía server (Controller �
 | UI | `Views/XuatNhap/DanhSach.cshtml` | Gõ vào ô tìm kiếm (VD: `nguyen`). |
 | JS | `danhsach.js` | Sự kiện `input` + **debounce 300 ms** (chỉ gọi khi ngừng gõ); `controller.abort()` hủy request cũ, tạo `AbortController` mới; `await fetch(url, { signal })`. |
 | Controller | `XuatNhapController.DanhSachData(DanhSachFilterDto)` | Bind `keyword` cùng bộ lọc và trang. |
-| EF Core | `XuatNhapService.LocDanhSachAsync` | Áp phạm vi → `EF.Functions.Collate(s.HoTen, "Vietnamese_CI_AI").Contains(kw) || s.MaSV.Contains(kw)` → phân trang. |
-| DB | SQL Server | `WHERE [HoTen] COLLATE Vietnamese_CI_AI LIKE N'%nguyen%'` – CI: không phân biệt hoa thường, AI: không phân biệt dấu, nên khớp "Nguyễn". |
+| EF Core | `XuatNhapService.LocDanhSachAsync` | Áp phạm vi → `EF.Functions.Collate(s.HoTen, "Latin1_General_100_CI_AI").Contains(kw) || s.MaSV.Contains(kw)` → phân trang. |
+| DB | SQL Server | `WHERE [HoTen] COLLATE Latin1_General_100_CI_AI LIKE N'%nguyen%'` – CI: không phân biệt hoa thường, AI: không phân biệt dấu, nên khớp "Nguyễn". Không dùng `Vietnamese_CI_AI` vì collation này coi ư, ơ, ă, đ… là chữ cái riêng ("hung" không khớp "Hưng", "do" không khớp "Đỗ"). |
 | JSON | `PagedResultDto<SinhVienItemDto>` | |
 | JS | `if (!res.ok) ...` rồi `await res.json()` | `fetch` **không reject** với HTTP 4xx/5xx – phải tự kiểm tra `res.ok`; chỉ reject khi lỗi mạng hoặc bị `abort` (bỏ qua `AbortError`). |
 | DOM | `renderRows()` + `renderPhanTrang()` | Cập nhật bảng, phân trang, tổng số không tải lại trang. |

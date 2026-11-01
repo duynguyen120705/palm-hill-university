@@ -1,0 +1,86 @@
+@model StudentPortal.Models.DTOs.HoSoCaNhanDto
+@{
+    ViewData["Title"] = "Hồ sơ cá nhân";
+    var tenVaiTro = Model.VaiTro switch { "Admin" => "Admin", "GiaoVu" => "Giáo vụ", _ => "Sinh viên" };
+    var sv = Model.SinhVien;
+}
+
+@Html.AntiForgeryToken()
+
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-person-vcard me-2"></i>Hồ sơ cá nhân</h4>
+    <a class="btn btn-outline-secondary" asp-action="DoiMatKhau"><i class="bi bi-key me-1"></i>Đổi mật khẩu</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold">Thông tin tài khoản</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-5">Tên đăng nhập</dt><dd class="col-7">@Model.UserName</dd>
+                    <dt class="col-5">Họ tên</dt><dd class="col-7">@Model.HoTen</dd>
+                    <dt class="col-5">Vai trò</dt><dd class="col-7">@tenVaiTro</dd>
+                    @if (Model.VaiTro == "GiaoVu")
+                    {
+                        <dt class="col-5">Khoa phụ trách</dt>
+                        <dd class="col-7">@Model.TenKhoaPhuTrach (@Model.MaKhoaPhuTrach)</dd>
+                    }
+                    <dt class="col-5">Trạng thái</dt><dd class="col-7">@Model.TrangThaiTaiKhoanText</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.VaiTro == "SinhVien")
+    {
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">Hồ sơ sinh viên</div>
+                <div class="card-body">
+                    @if (sv == null)
+                    {
+                        <p class="text-muted mb-0">Không tìm thấy hồ sơ sinh viên gắn với tài khoản này.</p>
+                    }
+                    else
+                    {
+                        <dl class="row mb-3">
+                            <dt class="col-5 col-md-4">Mã sinh viên</dt><dd class="col-7 col-md-8">@sv.MaSV</dd>
+                            <dt class="col-5 col-md-4">Họ tên</dt><dd class="col-7 col-md-8">@sv.HoTen</dd>
+                            <dt class="col-5 col-md-4">Ngày sinh</dt><dd class="col-7 col-md-8">@sv.NgaySinhFormatted</dd>
+                            <dt class="col-5 col-md-4">Giới tính</dt><dd class="col-7 col-md-8">@sv.GioiTinhText</dd>
+                            <dt class="col-5 col-md-4">Lớp</dt><dd class="col-7 col-md-8">@sv.TenLop (@sv.MaLop)</dd>
+                            <dt class="col-5 col-md-4">Khoa / Khóa</dt><dd class="col-7 col-md-8">@sv.TenKhoa / @sv.MaKhoaHoc</dd>
+                            <dt class="col-5 col-md-4">Trạng thái</dt><dd class="col-7 col-md-8">@sv.TrangThaiText</dd>
+                        </dl>
+
+                        <h6 class="border-top pt-3">Thông tin liên hệ</h6>
+                        <div id="lhMessage" class="alert d-none" role="status"></div>
+                        <form id="formLienHe" class="row g-2" novalidate>
+                            <div class="col-12 col-md-6">
+                                <label for="lhSdt" class="form-label">Số điện thoại</label>
+                                <input type="tel" id="lhSdt" class="form-control" maxlength="10" value="@sv.SDT" placeholder="0xxxxxxxxx" />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="lhEmail" class="form-label">Email</label>
+                                <input type="email" id="lhEmail" class="form-control" maxlength="100" value="@sv.Email" />
+                            </div>
+                            <div class="col-12">
+                                <label for="lhDiaChi" class="form-label">Địa chỉ</label>
+                                <input type="text" id="lhDiaChi" class="form-control" maxlength="250" value="@sv.DiaChi" />
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Cập nhật</button>
+                                <span class="form-text ms-2">Các thông tin khác do Admin/Giáo vụ quản lý.</span>
+                            </div>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/hoso.js" asp-append-version="true"></script>
+}

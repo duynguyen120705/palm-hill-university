@@ -1,0 +1,191 @@
+@{
+    ViewData["Title"] = "Quản lý tài khoản";
+}
+
+@Html.AntiForgeryToken()
+
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-people me-2"></i>Quản lý tài khoản Admin/Giáo vụ</h4>
+    <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-light text-primary border"><i class="bi bi-code-slash"></i> XMLHttpRequest + jQuery AJAX</span>
+        <button type="button" id="btnTaoMoi" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Tạo tài khoản</button>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form id="formLoc" class="row g-2 align-items-end">
+            <div class="col-12">
+                <label for="locKeyword" class="form-label">Tìm kiếm <span class="badge bg-light text-primary border">fetch()</span></label>
+                <input type="search" id="locKeyword" name="keyword" class="form-control" maxlength="100" autocomplete="off"
+                       placeholder="Nhập tên đăng nhập hoặc họ tên (không cần dấu, VD: nhung)" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="locVaiTro" class="form-label">Vai trò</label>
+                <select id="locVaiTro" name="vaiTro" class="form-select">
+                    <option value="">Tất cả</option>
+                    <option value="Admin">Admin</option>
+                    <option value="GiaoVu">Giáo vụ</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="locKhoa" class="form-label">Khoa phụ trách</label>
+                <select id="locKhoa" name="maKhoa" class="form-select"><option value="">Tất cả</option></select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="locTrangThai" class="form-label">Trạng thái</label>
+                <select id="locTrangThai" name="trangThai" class="form-select">
+                    <option value="">Tất cả</option>
+                    <option value="1">Hoạt động</option>
+                    <option value="0">Bị khóa</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="locPageSize" class="form-label">Số dòng/trang</label>
+                <select id="locPageSize" class="form-select">
+                    <option value="5">5</option>
+                    <option value="10" selected>10</option>
+                    <option value="20">20</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-2 d-grid">
+                <button type="submit" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat me-1"></i>Tải lại</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="tkMessage" class="alert d-none" role="status"></div>
+<div id="tkStatus" class="small text-muted mb-2" aria-live="polite"></div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Tên đăng nhập</th>
+                    <th>Họ tên</th>
+                    <th>Vai trò</th>
+                    <th>Khoa phụ trách</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="tkBody"></tbody>
+        </table>
+    </div>
+    <nav class="card-footer bg-white" aria-label="Phân trang tài khoản">
+        <ul id="tkPaging" class="pagination pagination-sm justify-content-end mb-0"></ul>
+    </nav>
+</div>
+
+@* Modal tạo / cập nhật tài khoản (FR-02, FR-03) *@
+<div class="modal fade" id="modalTaiKhoan" tabindex="-1" aria-labelledby="modalTaiKhoanTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="formTaiKhoan" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTaiKhoanTitle">Tạo tài khoản</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="tkId" />
+                <div class="mb-2">
+                    <label for="tkUserName" class="form-label">Tên đăng nhập</label>
+                    <input type="text" id="tkUserName" class="form-control" maxlength="50" autocomplete="off" required />
+                </div>
+                <div class="mb-2">
+                    <label for="tkHoTen" class="form-label">Họ tên</label>
+                    <input type="text" id="tkHoTen" class="form-control" maxlength="100" required />
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label for="tkVaiTro" class="form-label">Vai trò</label>
+                        <select id="tkVaiTro" class="form-select">
+                            <option value="GiaoVu">Giáo vụ</option>
+                            <option value="Admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label for="tkKhoa" class="form-label">Khoa phụ trách</label>
+                        <select id="tkKhoa" class="form-select"><option value="">-- Chọn khoa --</option></select>
+                    </div>
+                </div>
+                <div class="row g-2 nhom-mat-khau">
+                    <div class="col-6">
+                        <label for="tkMatKhau" class="form-label">Mật khẩu ban đầu</label>
+                        <input type="password" id="tkMatKhau" class="form-control" autocomplete="new-password" />
+                    </div>
+                    <div class="col-6">
+                        <label for="tkXacNhan" class="form-label">Xác nhận mật khẩu</label>
+                        <input type="password" id="tkXacNhan" class="form-control" autocomplete="new-password" />
+                    </div>
+                    <div class="col-12 form-text">Tối thiểu 8 ký tự, gồm cả chữ và số.</div>
+                </div>
+                <div class="alert alert-danger mt-3 mb-0 d-none loi-modal" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-primary">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Modal cấp lại mật khẩu (FR-04) *@
+<div class="modal fade" id="modalMatKhau" tabindex="-1" aria-labelledby="modalMatKhauTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="formMatKhau" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalMatKhauTitle">Cấp lại mật khẩu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="mkId" />
+                <p class="mb-2">Tài khoản: <strong id="mkUserName"></strong></p>
+                <div class="mb-2">
+                    <label for="mkMoi" class="form-label">Mật khẩu mới</label>
+                    <input type="password" id="mkMoi" class="form-control" autocomplete="new-password" required />
+                </div>
+                <div class="mb-2">
+                    <label for="mkXacNhan" class="form-label">Xác nhận mật khẩu mới</label>
+                    <input type="password" id="mkXacNhan" class="form-control" autocomplete="new-password" required />
+                </div>
+                <div class="form-text">Tối thiểu 8 ký tự, gồm cả chữ và số.</div>
+                <div class="alert alert-danger mt-3 mb-0 d-none loi-modal" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-warning">Cấp lại</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* Modal khóa / mở khóa (FR-05) *@
+<div class="modal fade" id="modalTrangThai" tabindex="-1" aria-labelledby="modalTrangThaiTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="formTrangThai" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTrangThaiTitle">Khóa tài khoản</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="ttId" />
+                <input type="hidden" id="ttKhoa" />
+                <p class="mb-2">Tài khoản: <strong id="ttUserName"></strong></p>
+                <label for="ttLyDo" class="form-label">Lý do</label>
+                <textarea id="ttLyDo" class="form-control" rows="3" maxlength="500" required></textarea>
+                <div class="alert alert-danger mt-3 mb-0 d-none loi-modal" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-danger" id="ttSubmit">Khóa</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/phantrang.js" asp-append-version="true"></script>
+    <script src="~/js/taikhoan.js" asp-append-version="true"></script>
+}

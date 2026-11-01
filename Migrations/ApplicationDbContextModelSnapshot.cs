@@ -419,6 +419,50 @@ namespace StudentPortal.Migrations
                     b.ToTable("NHAT_KY_THAO_TAC");
                 });
 
+            modelBuilder.Entity("StudentPortal.Models.PhienNhap", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ChiTietLoi")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SoCapNhat")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SoLoi")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SoThemMoi")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TenFile")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("ThoiDiem")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ThoiDiem");
+
+                    b.HasIndex("Username");
+
+                    b.ToTable("PHIEN_NHAP");
+                });
+
             modelBuilder.Entity("StudentPortal.Models.SinhVien", b =>
                 {
                     b.Property<string>("MaSV")
@@ -578,8 +622,7 @@ namespace StudentPortal.Migrations
                     b.HasOne("StudentPortal.Models.SinhVien", "SinhVien")
                         .WithMany("LichSuHoSos")
                         .HasForeignKey("MaSV")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("SinhVien");
                 });

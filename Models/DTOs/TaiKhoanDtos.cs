@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace StudentPortal.Models.DTOs
 {
@@ -91,6 +92,8 @@ namespace StudentPortal.Models.DTOs
         [Required]
         public string Id { get; set; } = string.Empty;
 
+        // Bắt buộc gửi lên, tránh thiếu trường bị hiểu ngầm là false (mở khóa)
+        [JsonRequired]
         public bool Khoa { get; set; }
 
         [Required(ErrorMessage = "Vui lòng nhập lý do")]

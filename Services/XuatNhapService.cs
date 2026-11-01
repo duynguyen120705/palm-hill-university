@@ -21,6 +21,9 @@ namespace StudentPortal.Services
 
         private const int SoDongToiDa = 2000;
 
+        // Giới hạn thời gian chạy Regex trên dữ liệu từ file nhập (chống ReDoS)
+        private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(200);
+
         // Quy ước mã theo dữ liệu seed: GioiTinh 0=Nữ 1=Nam 2=Khác
         private const int DangHoc = 0, BaoLuu = 1, ThoiHoc = 2, DaTotNghiep = 3;
 
@@ -308,7 +311,7 @@ namespace StudentPortal.Services
             var loi = new List<string>();
 
             var maSV = (Text(1) ?? "").ToUpperInvariant();
-            if (!Regex.IsMatch(maSV, "^[A-Z0-9]{6,15}$"))
+            if (!Regex.IsMatch(maSV, "^[A-Z0-9]{6,15}$", RegexOptions.None, RegexTimeout))
                 loi.Add("Mã SV phải 6–15 ký tự chữ và số không dấu");
 
             var hoTen = Text(2) ?? "";
@@ -328,11 +331,11 @@ namespace StudentPortal.Services
             if (maLop.Length == 0) loi.Add("Mã lớp bắt buộc");
 
             var sdt = Text(6);
-            if (sdt != null && !Regex.IsMatch(sdt, @"^0\d{9}$"))
+            if (sdt != null && !Regex.IsMatch(sdt, @"^0\d{9}$", RegexOptions.None, RegexTimeout))
                 loi.Add("SĐT gồm 10 chữ số, bắt đầu bằng 0");
 
             var email = Text(7)?.ToLowerInvariant();
-            if (email != null && (email.Length > 100 || !Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$")))
+            if (email != null && (email.Length > 100 || !Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.None, RegexTimeout)))
                 loi.Add("Email không đúng định dạng");
 
             var trangThai = BoDau(Text(9)) switch
@@ -520,7 +523,7 @@ namespace StudentPortal.Services
             var sb = new StringBuilder();
             foreach (var c in chuan)
                 if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
-            return Regex.Replace(sb.ToString(), @"\s+", " ");
+            return Regex.Replace(sb.ToString(), @"\s+", " ", RegexOptions.None, RegexTimeout);
         }
     }
 }

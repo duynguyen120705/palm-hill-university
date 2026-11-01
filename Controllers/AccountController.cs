@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Core.Infrastructure;
+using Microsoft.AspNetCore.Mvc.Filters;
 using StudentPortal.Models;
 using StudentPortal.Models.DTOs;
 
@@ -70,10 +72,11 @@ namespace StudentPortal.Controllers
 
         // POST: /Account/Logout
         // Phiên đã hết hạn thì token anti-forgery (gắn với người dùng cũ) không còn khớp; FR-07 yêu cầu
-        // vẫn chuyển về trang đăng nhập nên bỏ qua kiểm tra token - đăng xuất không thay đổi dữ liệu
+        // vẫn chuyển về trang đăng nhập: token sai thì về Login (không chạy action) thay vì trả lỗi 400
         [HttpPost]
         [AllowAnonymous]
-        [IgnoreAntiforgeryToken]
+        [ValidateAntiForgeryToken]
+        [VeLoginKhiTokenSai]
         public async Task<IActionResult> Logout()
         {
             await _signInManager.SignOutAsync();
@@ -105,5 +108,20 @@ namespace StudentPortal.Controllers
             !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
                 ? LocalRedirect(returnUrl)
                 : RedirectToAction("Index", "Home");
+
+        // Thay kết quả lỗi anti-forgery (400) bằng chuyển hướng về trang đăng nhập
+        private sealed class VeLoginKhiTokenSaiAttribute : Attribute, IAlwaysRunResultFilter
+        {
+            public void OnResultExecuting(ResultExecutingContext context)
+            {
+                if (context.Result is IAntiforgeryValidationFailedResult)
+                    context.Result = new RedirectToActionResult(nameof(Login), "Account", null);
+            }
+
+            public void OnResultExecuted(ResultExecutedContext context)
+            {
+                // Không cần xử lý sau khi trả kết quả
+            }
+        }
     }
 }

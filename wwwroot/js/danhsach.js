@@ -118,19 +118,19 @@
     // Tìm kiếm khi gõ, debounce 300 ms
     txtKeyword.addEventListener('input', function () {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function () { loadPage(1); }, 300);
+        debounceTimer = setTimeout(function () { void loadPage(1); }, 300);
     });
-    selKhoa.addEventListener('change', function () { refreshLopOptions(); loadPage(1); });
-    selKhoaHoc.addEventListener('change', function () { refreshLopOptions(); loadPage(1); });
+    selKhoa.addEventListener('change', function () { refreshLopOptions(); void loadPage(1); });
+    selKhoaHoc.addEventListener('change', function () { refreshLopOptions(); void loadPage(1); });
     ['selLop', 'selTrangThai', 'selPageSize'].forEach(function (id) {
-        document.getElementById(id).addEventListener('change', function () { loadPage(1); });
+        document.getElementById(id).addEventListener('change', function () { void loadPage(1); });
     });
-    form.addEventListener('submit', function (e) { e.preventDefault(); loadPage(1); });
+    form.addEventListener('submit', function (e) { e.preventDefault(); void loadPage(1); });
     document.getElementById('btnXuatExcel').addEventListener('click', function () { xuat('excel'); });
     document.getElementById('btnXuatPdf').addEventListener('click', function () { xuat('pdf'); });
 
     fetch('/ThongKe/BoLoc')
-        .then(function (res) { return res.ok ? res.json() : Promise.reject(res.status); })
+        .then(function (res) { return res.ok ? res.json() : Promise.reject(new Error('HTTP ' + res.status)); })
         .then(function (res) {
             fillSelect(selKhoa, res.data.khoas);
             fillSelect(selKhoaHoc, res.data.khoaHocs);
@@ -139,5 +139,5 @@
         })
         .catch(function () { status.textContent = 'Không tải được bộ lọc.'; });
 
-    loadPage(1);
+    void loadPage(1);
 })();

@@ -1,0 +1,131 @@
+@* FR-23 – FR-26 Danh mục Khoa, Khóa, Lớp: một màn hình gồm ba tab (mục 3.2.3) *@
+@{
+    ViewData["Title"] = "Danh mục";
+    var tab = (string)ViewData["Tab"]!;
+    var laAdmin = User.IsInRole(Roles.Admin);
+    // Giáo vụ chỉ thao tác trên Lớp (FR-24 – FR-26)
+    var duocThaoTac = laAdmin || tab == "lop";
+    var nhan = tab switch { "khoa" => "khoa", "khoahoc" => "khóa", _ => "lớp" };
+}
+
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Danh mục</h4>
+    @if (duocThaoTac)
+    {
+        <button type="button" id="btnThem" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Thêm @nhan</button>
+    }
+</div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link @(tab == "khoa" ? "active" : "")" asp-controller="Faculties" asp-action="Index">Khoa</a></li>
+    <li class="nav-item"><a class="nav-link @(tab == "khoahoc" ? "active" : "")" asp-controller="Courses" asp-action="Index">Khóa</a></li>
+    <li class="nav-item"><a class="nav-link @(tab == "lop" ? "active" : "")" asp-controller="Classes" asp-action="Index">Lớp</a></li>
+</ul>
+
+@if (tab == "lop")
+{
+    <form id="formLoc" class="row g-2 mb-3">
+        <div class="col-12 col-md-4">
+            <label for="locKhoa" class="form-label">Khoa</label>
+            <select id="locKhoa" name="maKhoa" class="form-select"><option value="">Tất cả</option></select>
+        </div>
+        <div class="col-12 col-md-4">
+            <label for="locKhoaHoc" class="form-label">Khóa</label>
+            <select id="locKhoaHoc" name="maKhoaHoc" class="form-select"><option value="">Tất cả</option></select>
+        </div>
+    </form>
+}
+
+<div id="dmStatus" class="small text-muted mb-2" aria-live="polite"></div>
+
+<div class="card shadow-sm" id="catalogRoot" data-tab="@tab" data-thao-tac="@(duocThaoTac ? "1" : "0")">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    @if (tab == "khoa")
+                    {
+                        <th>Mã khoa</th><th>Tên khoa</th><th class="text-end">Số lớp</th>
+                    }
+                    else if (tab == "khoahoc")
+                    {
+                        <th>Mã khóa</th><th>Năm nhập học</th><th class="text-end">Số lớp</th>
+                    }
+                    else
+                    {
+                        <th>Mã lớp</th><th>Tên lớp</th><th>Khoa</th><th>Khóa</th><th class="text-end">Số sinh viên</th>
+                    }
+                    @if (duocThaoTac)
+                    {
+                        <th class="text-end">Thao tác</th>
+                    }
+                </tr>
+            </thead>
+            <tbody id="dmBody"></tbody>
+        </table>
+    </div>
+    <nav class="card-footer bg-white" aria-label="Phân trang danh mục">
+        <ul id="dmPaging" class="pagination pagination-sm justify-content-end mb-0"></ul>
+    </nav>
+</div>
+
+@if (duocThaoTac)
+{
+    <div class="modal fade" id="modalDanhMuc" tabindex="-1" aria-labelledby="modalDanhMucTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="formDanhMuc" class="modal-content" novalidate>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalDanhMucTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none loi-modal" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="dmMa" class="form-label">Mã @nhan</label>
+                        <input type="text" id="dmMa" class="form-control" maxlength="15" required />
+                        <div class="form-text">2–15 ký tự chữ và số, không dấu. Mã không sửa được sau khi tạo.</div>
+                    </div>
+                    @if (tab == "khoa")
+                    {
+                        <div class="mb-3">
+                            <label for="dmTen" class="form-label">Tên khoa</label>
+                            <input type="text" id="dmTen" class="form-control" maxlength="100" required />
+                        </div>
+                    }
+                    else if (tab == "khoahoc")
+                    {
+                        <div class="mb-3">
+                            <label for="dmNam" class="form-label">Năm nhập học</label>
+                            <input type="number" id="dmNam" class="form-control" min="2000" required />
+                            <div class="form-text d-none" id="dmNamGhiChu">Khóa đã có lớp chứa sinh viên: giữ cố định năm nhập học.</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label for="dmTen" class="form-label">Tên lớp</label>
+                            <input type="text" id="dmTen" class="form-control" maxlength="50" required />
+                        </div>
+                        <div class="mb-3">
+                            <label for="dmKhoa" class="form-label">Khoa</label>
+                            <select id="dmKhoa" class="form-select" required><option value="">-- Chọn khoa --</option></select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dmKhoaHoc" class="form-label">Khóa</label>
+                            <select id="dmKhoaHoc" class="form-select" required><option value="">-- Chọn khóa --</option></select>
+                            <div class="form-text d-none" id="dmLopGhiChu">Lớp còn sinh viên: chỉ sửa được tên lớp.</div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/pages/catalog.js" asp-append-version="true"></script>
+}

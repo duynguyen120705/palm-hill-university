@@ -13,6 +13,14 @@
             </a>
         </li>
     }
+    @if (User.IsInRole(Roles.Admin) || User.IsInRole(Roles.CanBo))
+    {
+        <li class="nav-item">
+            <a class="nav-link text-dark" asp-area="" asp-controller="Faculties" asp-action="Index">
+                <i class="bi bi-folder2-open me-1"></i>Danh Mục
+            </a>
+        </li>
+    }
     @if (User.IsInRole(Roles.Admin))
     {
         <li class="nav-item">

@@ -139,42 +139,19 @@
         // Hộp thoại xác nhận trước thao tác quan trọng; trả về Promise<boolean>
         confirm: function (message, nhanDongY) {
             return new Promise(function (resolve) {
-                const el = document.createElement('div');
-                el.className = 'modal fade';
-                el.tabIndex = -1;
-
-                const dialog = document.createElement('div');
-                dialog.className = 'modal-dialog modal-dialog-centered';
-                const content = document.createElement('div');
-                content.className = 'modal-content';
-                const body = document.createElement('div');
-                body.className = 'modal-body';
-                body.textContent = message;
-                const footer = document.createElement('div');
-                footer.className = 'modal-footer';
-                const huy = document.createElement('button');
-                huy.type = 'button';
-                huy.className = 'btn btn-outline-secondary';
-                huy.setAttribute('data-bs-dismiss', 'modal');
-                huy.textContent = 'Hủy';
-                const dongY = document.createElement('button');
-                dongY.type = 'button';
-                dongY.className = 'btn btn-danger';
+                const el = document.getElementById('modalXacNhan'); // Views/Shared/_Modal.cshtml
+                const dongY = el.querySelector('[data-xac-nhan]');
+                el.querySelector('.modal-body').textContent = message;
                 dongY.textContent = nhanDongY || 'Xác nhận';
-                footer.append(huy, dongY);
-                content.append(body, footer);
-                dialog.appendChild(content);
-                el.appendChild(dialog);
-                document.body.appendChild(el);
 
-                const modal = new bootstrap.Modal(el);
+                const modal = bootstrap.Modal.getOrCreateInstance(el);
                 let ketQua = false;
-                dongY.addEventListener('click', function () { ketQua = true; modal.hide(); });
+                function chon() { ketQua = true; modal.hide(); }
+                dongY.addEventListener('click', chon);
                 el.addEventListener('hidden.bs.modal', function () {
-                    modal.dispose();
-                    el.remove();
+                    dongY.removeEventListener('click', chon);
                     resolve(ketQua);
-                });
+                }, { once: true });
                 modal.show();
             });
         },

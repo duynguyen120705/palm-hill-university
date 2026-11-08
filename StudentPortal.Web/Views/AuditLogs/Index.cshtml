@@ -1,0 +1,89 @@
+@{
+    ViewData["Title"] = "Nhật ký thao tác";
+
+    // Danh mục mã hành động, mục 3.2.2.2
+    var nhomHanhDong = new (string Nhom, string[] Ma)[]
+    {
+        ("Tài khoản", new[] { "TaoTaiKhoan", "CapNhatTaiKhoan", "DoiQuyenKhoa", "CapLaiMatKhau", "DoiMatKhau", "KhoaTaiKhoan", "MoKhoaTaiKhoan" }),
+        ("Hồ sơ", new[] { "TaoHoSo", "SuaHoSo", "CapNhatLienHe", "DoiTrangThai", "ChuyenLop", "XoaMemHoSo" }),
+        ("Danh mục", new[] { "ThemDanhMuc", "SuaDanhMuc", "XoaMemDanhMuc" }),
+        ("Dữ liệu", new[] { "Import", "XuatDanhSach", "XuatThongKe" })
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-journal-text me-2"></i>Nhật ký thao tác</h4>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form id="formNhatKy" class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label for="locTuNgay" class="form-label">Từ ngày</label>
+                <input type="date" id="locTuNgay" name="tuNgay" class="form-control" />
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="locDenNgay" class="form-label">Đến ngày</label>
+                <input type="date" id="locDenNgay" name="denNgay" class="form-control" />
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="locNguoi" class="form-label">Người thực hiện</label>
+                <input type="search" id="locNguoi" name="nguoiThucHien" class="form-control" maxlength="256" autocomplete="off" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="locHanhDong" class="form-label">Hành động</label>
+                <select id="locHanhDong" name="hanhDong" class="form-select">
+                    <option value="">Tất cả</option>
+                    @foreach (var nhom in nhomHanhDong)
+                    {
+                        <optgroup label="@nhom.Nhom">
+                            @foreach (var ma in nhom.Ma)
+                            {
+                                <option value="@ma">@ma</option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="locDoiTuong" class="form-label">Đối tượng</label>
+                <input type="search" id="locDoiTuong" name="doiTuong" class="form-control" maxlength="256" autocomplete="off"
+                       placeholder="Mã SV, mã lớp, tên đăng nhập" />
+            </div>
+            <div class="col-12 col-md-1 d-grid">
+                <button type="submit" class="btn btn-primary">Tìm</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="nkStatus" class="small text-muted mb-2" aria-live="polite"></div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Thời điểm</th>
+                    <th>Người thực hiện</th>
+                    <th>Hành động</th>
+                    <th>Loại đối tượng</th>
+                    <th>Mã đối tượng</th>
+                    <th>Chi tiết</th>
+                </tr>
+            </thead>
+            <tbody id="nkBody">
+                <tr><td colspan="6" class="text-center text-muted py-4">Chọn bộ lọc rồi bấm Tìm.</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <nav class="card-footer bg-white d-flex flex-wrap gap-2 justify-content-between align-items-center" aria-label="Phân trang nhật ký">
+        <span id="nkTotal" class="fw-semibold"></span>
+        <partial name="_Pagination" model='"nkPaging"' />
+    </nav>
+</div>
+
+@section Scripts {
+
+    <script src="~/js/pages/audit-logs.js" asp-append-version="true"></script>
+}

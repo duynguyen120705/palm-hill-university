@@ -70,9 +70,7 @@ namespace StudentPortal.Controllers
                 await _userManager.UpdateAsync(user);
             }
 
-            if (!string.IsNullOrEmpty(dto.ReturnUrl) && Url.IsLocalUrl(dto.ReturnUrl))
-                return LocalRedirect(dto.ReturnUrl);
-            return await RedirectTheoVaiTroAsync(user);
+            return RedirectToLocal(dto.ReturnUrl);
         }
 
         // POST: /Account/Logout
@@ -137,18 +135,7 @@ namespace StudentPortal.Controllers
             return Ok(ApiResponse.Ok(message: "Đã đổi mật khẩu."));
         }
 
-        // Mở giao diện theo vai trò (FR-06 bước 4)
-        private async Task<IActionResult> RedirectTheoVaiTroAsync(ApplicationUser? user)
-        {
-            if (user != null)
-            {
-                if (await _userManager.IsInRoleAsync(user, Roles.Admin)) return RedirectToAction("Index", "Users");
-                if (await _userManager.IsInRoleAsync(user, Roles.CanBo)) return RedirectToAction("Index", "Statistics");
-                if (await _userManager.IsInRoleAsync(user, Roles.SinhVien)) return RedirectToAction(nameof(Profile));
-            }
-            return RedirectToAction("Index", "Home");
-        }
-
+        // Về trang chủ theo vai trò; returnUrl không phải URL nội bộ thì bỏ qua (UC01 6a)
         private IActionResult RedirectToLocal(string? returnUrl) =>
             !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
                 ? LocalRedirect(returnUrl)

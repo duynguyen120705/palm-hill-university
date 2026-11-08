@@ -20,3 +20,16 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+/* Layout chung: menu bên trái, vùng nội dung (mục 3.2.3) */
+.app-noi-dung {
+  min-width: 0;
+  padding-bottom: 6rem !important;
+}
+
+@media (min-width: 768px) {
+  .app-menu {
+    flex: 0 0 15rem;
+    min-height: calc(100vh - 57px);
+  }
+}

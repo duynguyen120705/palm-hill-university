@@ -123,21 +123,32 @@ catch (Exception ex)
 // 6. HTTP request pipeline
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    // Trang 500 là file tĩnh để vẫn hiển thị được khi CSDL gặp sự cố (mỗi request đều kiểm tra tài khoản trong CSDL)
+    app.UseExceptionHandler(nhanh => nhanh.Run(context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "text/html; charset=utf-8";
+        return context.Response.SendFileAsync(app.Environment.WebRootFileProvider.GetFileInfo("500.html"));
+    }));
     app.UseHsts();
 }
+
+// Trang 403, 404 thân thiện cho trình duyệt; request Ajax vẫn nhận mã HTTP và JSON
+app.UseWhen(context => !ExceptionMiddleware.LaAjax(context.Request),
+    nhanh => nhanh.UseStatusCodePagesWithReExecute("/Home/Error/{0}"));
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
 
+// Xử lý ngoại lệ tập trung: lỗi nghiệp vụ/ngoài phạm vi trả mã HTTP, Ajax nhận JSON.
+// Đặt trước Authentication vì mỗi request đều kiểm tra tài khoản trong CSDL (FR-08)
+app.UseMiddleware<ExceptionMiddleware>();
+
 // Bắt buộc theo thứ tự: Authentication -> Authorization
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Xử lý ngoại lệ tập trung: lỗi nghiệp vụ/ngoài phạm vi trả mã HTTP, Ajax nhận JSON
-app.UseMiddleware<ExceptionMiddleware>();
 
 app.MapControllerRoute(
     name: "default",

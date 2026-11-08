@@ -126,11 +126,7 @@ namespace StudentPortal.Services
         {
             var sv = await LayHoSoAsync(dto.MaSV, tracking: true);
 
-            var hoTen = dto.HoTen.Trim();
-            sv.HoTen = hoTen;
-            sv.HoTenKhongDau = TextHelper.BoDau(hoTen);
-            sv.NgaySinh = dto.NgaySinh!.Value.Date;
-            sv.GioiTinh = dto.GioiTinh!.Value;
+            GanThongTinBatBuoc(sv, dto);
             sv.SDT = LamSach(dto.SDT);
             sv.Email = LamSach(dto.Email)?.ToLowerInvariant();
             sv.DiaChi = LamSach(dto.DiaChi);
@@ -163,16 +159,8 @@ namespace StudentPortal.Services
             var isAdmin = _scope.GetCurrent().IsAdmin;
             var cu = sv.TrangThai;
             var moi = dto.TrangThaiMoi!.Value;
-
-            // Cặp không có trong bảng quy tắc: chặn và nêu lý do; cặp chỉ dành cho Admin: HTTP 403
-            if (!TrangThaiDuocChuyen(cu, laAdmin: true).Contains(moi))
-                throw new NghiepVuException($"Không được chuyển từ {cu.TenHienThi()} sang {moi.TenHienThi()}.");
-            if (!TrangThaiDuocChuyen(cu, isAdmin).Contains(moi))
-                throw new NghiepVuException("Chỉ Admin được thực hiện chuyển trạng thái này.", StatusCodes.Status403Forbidden);
-
             var lyDo = LamSach(dto.LyDo);
-            if (cu == TrangThaiHocTap.DaTotNghiep && lyDo == null)
-                throw new NghiepVuException("Sửa trạng thái hồ sơ Đã tốt nghiệp bắt buộc nhập lý do.");
+            KiemTraChuyenTrangThai(cu, moi, isAdmin, lyDo);
 
             await using var tx = await _context.Database.BeginTransactionAsync();
 
@@ -274,7 +262,71 @@ namespace StudentPortal.Services
             return await GetDetailAsync(sv.MaSV);
         }
 
+        // ===================== FR-30 Cập nhật từ file Excel =====================
+
+        public async Task UpdateFromImportAsync(StudentEditVm dto, string maLop, TrangThaiHocTap trangThai)
+        {
+            var sv = await LayHoSoAsync(dto.MaSV, tracking: true);
+            var lopCu = sv.MaLop;
+            var trangThaiCu = sv.TrangThai;
+            var doiLop = !string.Equals(lopCu, maLop, StringComparison.OrdinalIgnoreCase);
+            var doiTrangThai = trangThaiCu != trangThai;
+
+            if (doiLop) await KiemTraLopAsync(maLop);
+            // File không có cột lý do nên hồ sơ Đã tốt nghiệp phải đổi trạng thái tại màn hình chi tiết
+            if (doiTrangThai) KiemTraChuyenTrangThai(trangThaiCu, trangThai, _scope.GetCurrent().IsAdmin, lyDo: null);
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
+
+            GanThongTinBatBuoc(sv, dto);
+            // Ô trống ở trường liên hệ tùy chọn giữ giá trị hiện có
+            sv.SDT = LamSach(dto.SDT) ?? sv.SDT;
+            sv.Email = LamSach(dto.Email)?.ToLowerInvariant() ?? sv.Email;
+            sv.DiaChi = LamSach(dto.DiaChi) ?? sv.DiaChi;
+            await _auditLog.LogAsync("SuaHoSo", LoaiSinhVien, sv.MaSV);
+
+            if (doiLop)
+            {
+                sv.MaLop = maLop;
+                await _auditLog.LogAsync("ChuyenLop", LoaiSinhVien, sv.MaSV, $"{lopCu} -> {maLop}");
+            }
+            if (doiTrangThai)
+            {
+                sv.TrangThai = trangThai;
+                await _auditLog.LogAsync("DoiTrangThai", LoaiSinhVien, sv.MaSV,
+                    $"{trangThaiCu.TenHienThi()} -> {trangThai.TenHienThi()}");
+            }
+            if (doiLop || doiTrangThai) sv.DaCoBienDong = true;
+            await _context.SaveChangesAsync();
+
+            // Thôi học -> Đang học: tài khoản giữ trạng thái khóa, chỉ mở thủ công (FR-20)
+            if (doiTrangThai && trangThai == TrangThaiHocTap.ThoiHoc)
+                await KhoaTaiKhoanNeuDangHoatDongAsync(sv.MaSV, "Sinh viên chuyển sang Thôi học");
+
+            await tx.CommitAsync();
+        }
+
         // ===================== Hỗ trợ =====================
+
+        private static void GanThongTinBatBuoc(SinhVien sv, StudentEditVm dto)
+        {
+            var hoTen = dto.HoTen.Trim();
+            sv.HoTen = hoTen;
+            sv.HoTenKhongDau = TextHelper.BoDau(hoTen);
+            sv.NgaySinh = dto.NgaySinh!.Value.Date;
+            sv.GioiTinh = dto.GioiTinh!.Value;
+        }
+
+        // Cặp không có trong bảng quy tắc: chặn và nêu lý do; cặp chỉ dành cho Admin: HTTP 403
+        private static void KiemTraChuyenTrangThai(TrangThaiHocTap cu, TrangThaiHocTap moi, bool isAdmin, string? lyDo)
+        {
+            if (!TrangThaiDuocChuyen(cu, laAdmin: true).Contains(moi))
+                throw new NghiepVuException($"Không được chuyển từ {cu.TenHienThi()} sang {moi.TenHienThi()}.") { Truong = "TrangThai" };
+            if (!TrangThaiDuocChuyen(cu, isAdmin).Contains(moi))
+                throw new NghiepVuException("Chỉ Admin được thực hiện chuyển trạng thái này.", StatusCodes.Status403Forbidden) { Truong = "TrangThai" };
+            if (cu == TrangThaiHocTap.DaTotNghiep && lyDo == null)
+                throw new NghiepVuException("Sửa trạng thái hồ sơ Đã tốt nghiệp bắt buộc nhập lý do.") { Truong = "TrangThai" };
+        }
 
         // Hồ sơ không tồn tại hoặc đã xóa mềm: 404; ngoài phạm vi: 403 (UC10)
         private async Task<SinhVien> LayHoSoAsync(string maSV, bool tracking)

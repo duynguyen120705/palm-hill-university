@@ -26,16 +26,23 @@ namespace StudentPortal.Models.ViewModels
     {
         public int Dong { get; set; }
         public string? MaSV { get; set; }
-        public string Loi { get; set; } = string.Empty;
+        public string Cot { get; set; } = string.Empty;
+        public string NoiDung { get; set; } = string.Empty;
     }
 
-    // Kết quả một lần nhập Excel (FR-30)
+    // Báo cáo kết quả nhập Excel, mẫu BM05 (FR-30)
     public class ImportResultDto
     {
         public string TenFile { get; set; } = string.Empty;
+        public string NguoiNhap { get; set; } = string.Empty;
+        public string ThoiDiem { get; set; } = string.Empty;
+        public int TongSoDong { get; set; }
         public int SoThemMoi { get; set; }
         public int SoCapNhat { get; set; }
         public int SoLoi { get; set; }
         public List<ImportErrorDto> Loi { get; set; } = new();
+
+        // File danh sách lỗi .xlsx; trả kèm kết quả để không phải lưu trên server
+        public string? FileLoiBase64 { get; set; }
     }
 }

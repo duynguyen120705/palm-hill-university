@@ -1,9 +1,10 @@
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Text;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using StudentPortal.Data;
 using StudentPortal.Infrastructure;
-using StudentPortal.Infrastructure.Validation;
 using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
 using StudentPortal.Services.Interfaces;
@@ -12,23 +13,28 @@ namespace StudentPortal.Services
 {
     public class ImportService : IImportService
     {
-        // Cột của file mẫu (FR-30), đúng thứ tự
+        private const string CotMaSV = "MaSV";
+        private const string CotNgaySinh = "NgaySinh";
+        private const string CotGioiTinh = "GioiTinh";
+        private const string CotMaLop = "MaLop";
+        private const string CotTrangThai = "TrangThai";
+        private const string CotMatKhau = "MatKhauBanDau";
+
+        // Cột của file mẫu BM02, đúng tên và thứ tự A -> J
         private static readonly string[] CotMau =
         {
-            "MaSV", "HoTen", "NgaySinh", "GioiTinh", "MaLop", "SDT", "Email", "DiaChi", "TrangThai", "MatKhau"
+            CotMaSV, "HoTen", CotNgaySinh, CotGioiTinh, CotMaLop, "SDT", "Email", "DiaChi", CotTrangThai, CotMatKhau
         };
 
-        private const int SoDongToiDa = 2000;
-
         private readonly AppDbContext _context;
-        private readonly IAccountService _account;
+        private readonly IStudentService _students;
         private readonly IScopeService _scope;
         private readonly IAuditLogService _auditLog;
 
-        public ImportService(AppDbContext context, IAccountService account, IScopeService scope, IAuditLogService auditLog)
+        public ImportService(AppDbContext context, IStudentService students, IScopeService scope, IAuditLogService auditLog)
         {
             _context = context;
-            _account = account;
+            _students = students;
             _scope = scope;
             _auditLog = auditLog;
         }
@@ -36,20 +42,21 @@ namespace StudentPortal.Services
         public byte[] CreateTemplate()
         {
             using var wb = new XLWorkbook();
-            var ws = wb.Worksheets.Add("SinhVien");
+            var ws = wb.Worksheets.Add("DanhSach");
+            // Định dạng văn bản để Excel giữ số 0 đầu của mã SV, SĐT và không đổi kiểu ngày
+            ws.Columns(1, CotMau.Length).Style.NumberFormat.Format = "@";
+
             for (int i = 0; i < CotMau.Length; i++)
                 ws.Cell(1, i + 1).Value = CotMau[i];
 
-            ws.Cell(2, 1).Value = "26019999";
-            ws.Cell(2, 2).Value = "Nguyễn Văn A";
-            ws.Cell(2, 3).Value = "15/08/2008";
-            ws.Cell(2, 4).Value = "Nam";
-            ws.Cell(2, 5).Value = "CNTT25A";
-            ws.Cell(2, 6).Value = "0912345678";
-            ws.Cell(2, 7).Value = "nguyenvana@example.com";
-            ws.Cell(2, 8).Value = "Hà Nội";
-            ws.Cell(2, 9).Value = "Đang học";
-            ws.Cell(2, 10).Value = "MatKhau123";
+            string[][] dongMau =
+            {
+                new[] { "2310020001", "Nguyễn Văn An", "15/03/2005", "Nam", "2310A02", "0912345678", "an.nv@example.com", "Hà Nội", "Đang học", "Sv@12345" },
+                new[] { "2310020002", "Trần Thị Bình", "02/11/2005", "Nữ", "2310A02", "", "", "", "Đang học", "Sv@12345" }
+            };
+            for (int r = 0; r < dongMau.Length; r++)
+                for (int c = 0; c < CotMau.Length; c++)
+                    ws.Cell(r + 2, c + 1).Value = dongMau[r][c];
 
             ws.Row(1).Style.Font.Bold = true;
             ws.Columns().AdjustToContents();
@@ -61,62 +68,73 @@ namespace StudentPortal.Services
 
         public async Task<ImportResultDto> ImportAsync(Stream file, string tenFile)
         {
-            var scope = _scope.GetCurrent();
-            var ketQua = new ImportResultDto { TenFile = tenFile };
-
-            // File chỉ đọc trong bộ nhớ, không lưu xuống đĩa (NFR-08)
-            using var wb = new XLWorkbook(file);
+            // File chỉ đọc trong bộ nhớ, không lưu xuống đĩa (NFR-08); BM02: chỉ đọc sheet đầu tiên
+            using var wb = MoFile(file);
             var ws = wb.Worksheets.First();
-
-            for (int i = 0; i < CotMau.Length; i++)
-            {
-                if (!string.Equals(ws.Cell(1, i + 1).GetString().Trim(), CotMau[i], StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException($"File sai mẫu: cột {i + 1} phải là '{CotMau[i]}'.");
-            }
+            KiemTraTieuDe(ws);
 
             var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
-            if (lastRow < 2) throw new InvalidDataException("File không có dòng dữ liệu nào.");
-            if (lastRow - 1 > SoDongToiDa) throw new InvalidDataException($"File vượt quá {SoDongToiDa} dòng dữ liệu.");
+            var cacDong = Enumerable.Range(2, Math.Max(0, lastRow - 1))
+                .Where(r => !ws.Row(r).IsEmpty())
+                .ToList();
 
             // Mã SV lặp trong file: báo lỗi tất cả dòng mang mã đó
-            var maTrongFile = Enumerable.Range(2, lastRow - 1)
-                .Select(r => ws.Cell(r, 1).GetString().Trim().ToUpperInvariant())
-                .Where(m => m.Length > 0)
-                .GroupBy(m => m)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToHashSet();
+            var dongLap = cacDong
+                .GroupBy(r => DocMaSV(ws, r))
+                .Where(g => g.Key.Length > 0 && g.Count() > 1)
+                .ToDictionary(g => g.Key, g => g.ToList());
 
-            // Lớp trong phạm vi được phép (FR-09); global filter đã loại lớp xóa mềm
-            var lopDuocPhep = (await _scope.ApplyClassScope(_context.Lops.AsNoTracking())
-                .Select(l => l.MaLop).ToListAsync())
+            // Global filter đã loại lớp xóa mềm; so khớp không phân biệt hoa thường rồi dùng mã chuẩn trong CSDL
+            var lopDangDung = (await _context.Lops.AsNoTracking().Select(l => l.MaLop).ToListAsync())
+                .ToDictionary(m => m, m => m, StringComparer.OrdinalIgnoreCase);
+            var lopDuocPhep = (await _scope.ApplyClassScope(_context.Lops.AsNoTracking()).Select(l => l.MaLop).ToListAsync())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            for (int r = 2; r <= lastRow; r++)
+            var scope = _scope.GetCurrent();
+            var thoiDiem = DateTime.Now;
+            var ketQua = new ImportResultDto
             {
-                if (ws.Row(r).IsEmpty()) continue;
+                TenFile = tenFile,
+                NguoiNhap = scope.UserName,
+                ThoiDiem = thoiDiem.ToString("dd/MM/yyyy HH:mm"),
+                TongSoDong = cacDong.Count
+            };
 
-                var maSV = ws.Cell(r, 1).GetString().Trim().ToUpperInvariant();
+            foreach (var r in cacDong)
+            {
+                var maSV = DocMaSV(ws, r);
                 try
                 {
-                    if (maTrongFile.Contains(maSV))
-                        throw new DongLoiException("Mã SV bị lặp trong file.");
+                    if (dongLap.TryGetValue(maSV, out var cungMa))
+                    {
+                        var dongKhac = string.Join(", ", cungMa.Where(d => d != r));
+                        throw new DongLoiException(CotMaSV, $"Mã SV lặp trong file (trùng dòng {dongKhac})");
+                    }
 
-                    var dong = DocDong(ws, r);
-                    var themMoi = await XuLyDongAsync(dong, lopDuocPhep, scope.IsAdmin);
-                    if (themMoi) ketQua.SoThemMoi++; else ketQua.SoCapNhat++;
+                    if (await XuLyDongAsync(ws, r, maSV, lopDangDung, lopDuocPhep)) ketQua.SoThemMoi++;
+                    else ketQua.SoCapNhat++;
                 }
                 catch (DongLoiException ex)
                 {
-                    ketQua.Loi.Add(new ImportErrorDto { Dong = r, MaSV = maSV, Loi = ex.Message });
+                    GhiLoi(ketQua, r, maSV, ex.Loi);
+                }
+                catch (NghiepVuException ex)
+                {
+                    GhiLoi(ketQua, r, maSV, new[] { new LoiCot(ex.Truong ?? CotMaSV, ex.Message) });
+                }
+                catch (DbUpdateException)
+                {
+                    GhiLoi(ketQua, r, maSV, new[] { new LoiCot(CotMaSV, "Không lưu được hồ sơ (vi phạm ràng buộc dữ liệu)") });
                 }
                 finally
                 {
+                    // Dòng lỗi không để lại thay đổi nào trong bộ nhớ cho dòng kế tiếp
                     _context.ChangeTracker.Clear();
                 }
             }
 
-            ketQua.SoLoi = ketQua.Loi.Count;
+            if (ketQua.Loi.Count > 0)
+                ketQua.FileLoiBase64 = Convert.ToBase64String(TaoFileLoi(ketQua.Loi));
 
             await _auditLog.LogAsync("Import", "File", tenFile,
                 $"Thêm mới: {ketQua.SoThemMoi}, cập nhật: {ketQua.SoCapNhat}, lỗi: {ketQua.SoLoi}");
@@ -125,237 +143,221 @@ namespace StudentPortal.Services
             return ketQua;
         }
 
+        // ===================== Kiểm tra file =====================
+
+        private static XLWorkbook MoFile(Stream file)
+        {
+            try
+            {
+                return new XLWorkbook(file);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                throw new NghiepVuException("File không đúng định dạng .xlsx.");
+            }
+        }
+
+        private static void KiemTraTieuDe(IXLWorksheet ws)
+        {
+            for (int i = 0; i < CotMau.Length; i++)
+            {
+                if (ws.Cell(1, i + 1).GetString().Trim() != CotMau[i])
+                    throw new NghiepVuException($"File sai mẫu: cột {i + 1} phải là '{CotMau[i]}'.");
+            }
+            if (ws.Row(1).LastCellUsed()?.Address.ColumnNumber > CotMau.Length)
+                throw new NghiepVuException($"File sai mẫu: chỉ có {CotMau.Length} cột theo mẫu BM02.");
+        }
+
         // ===================== Xử lý từng dòng =====================
+
+        private sealed record LoiCot(string Cot, string NoiDung);
 
         private sealed class DongLoiException : Exception
         {
-            public DongLoiException(string message) : base(message) { }
+            public IReadOnlyList<LoiCot> Loi { get; }
+
+            public DongLoiException(IReadOnlyList<LoiCot> loi) : base(loi[0].NoiDung) { Loi = loi; }
+            public DongLoiException(string cot, string noiDung) : this(new[] { new LoiCot(cot, noiDung) }) { }
         }
 
-        private sealed record DongNhap(string MaSV, string HoTen, DateTime NgaySinh, GioiTinh GioiTinh, string MaLop,
-            string? SDT, string? Email, string? DiaChi, TrangThaiHocTap TrangThai, string? MatKhau);
-
-        private static DongNhap DocDong(IXLWorksheet ws, int r)
+        private static void GhiLoi(ImportResultDto ketQua, int dong, string maSV, IEnumerable<LoiCot> loi)
         {
-            string? Text(int c)
+            ketQua.SoLoi++;
+            ketQua.Loi.AddRange(loi.Select(l => new ImportErrorDto
             {
-                var s = ws.Cell(r, c).GetString().Trim();
-                return s.Length == 0 ? null : s;
-            }
-
-            var loi = new List<string>();
-
-            var maSV = (Text(1) ?? "").ToUpperInvariant();
-            if (!ValidationRules.IsMaSo(maSV)) loi.Add("Mã SV phải 6–15 ký tự chữ và số không dấu");
-
-            var hoTen = Text(2) ?? "";
-            if (!ValidationRules.IsHoTen(hoTen)) loi.Add("Họ tên bắt buộc, 2–100 ký tự, không chứa chữ số");
-
-            var ngaySinh = DocNgay(ws.Cell(r, 3));
-            if (ngaySinh == null)
-                loi.Add("Ngày sinh bắt buộc, định dạng dd/MM/yyyy");
-            else if (!ValidationRules.IsNgaySinh(ngaySinh.Value))
-                loi.Add("Ngày sinh không hợp lệ (tuổi tối thiểu 15)");
-
-            GioiTinh? gioiTinh = TextHelper.BoDau(Text(4)) switch
-            {
-                "nam" => GioiTinh.Nam,
-                "nu" => GioiTinh.Nu,
-                "khac" => GioiTinh.Khac,
-                _ => null
-            };
-            if (gioiTinh == null) loi.Add("Giới tính phải là Nam/Nữ/Khác");
-
-            var maLop = Text(5) ?? "";
-            if (maLop.Length == 0) loi.Add("Mã lớp bắt buộc");
-
-            var sdt = Text(6);
-            if (sdt != null && !ValidationRules.IsSoDienThoai(sdt)) loi.Add("SĐT gồm 10 chữ số, bắt đầu bằng 0");
-
-            var email = Text(7)?.ToLowerInvariant();
-            if (email != null && !ValidationRules.IsEmail(email)) loi.Add("Email không đúng định dạng");
-
-            var diaChi = Text(8);
-            if (diaChi is { Length: > 255 }) loi.Add("Địa chỉ tối đa 255 ký tự");
-
-            TrangThaiHocTap? trangThai = TextHelper.BoDau(Text(9)) switch
-            {
-                "1" or "dang hoc" => TrangThaiHocTap.DangHoc,
-                "2" or "bao luu" => TrangThaiHocTap.BaoLuu,
-                "3" or "da tot nghiep" => TrangThaiHocTap.DaTotNghiep,
-                "4" or "thoi hoc" => TrangThaiHocTap.ThoiHoc,
-                _ => null
-            };
-            if (trangThai == null) loi.Add("Trạng thái phải là Đang học/Bảo lưu/Đã tốt nghiệp/Thôi học");
-
-            if (loi.Count > 0) throw new DongLoiException(string.Join("; ", loi) + ".");
-
-            return new DongNhap(maSV, hoTen, ngaySinh!.Value, gioiTinh!.Value, maLop, sdt, email, diaChi, trangThai!.Value, Text(10));
+                Dong = dong,
+                MaSV = maSV.Length == 0 ? null : maSV,
+                Cot = l.Cot,
+                NoiDung = l.NoiDung
+            }));
         }
+
+        private static string? DocText(IXLWorksheet ws, int r, int cot)
+        {
+            var s = ws.Cell(r, cot).GetString().Trim();
+            return s.Length == 0 ? null : s;
+        }
+
+        private static string DocMaSV(IXLWorksheet ws, int r) => (DocText(ws, r, 1) ?? "").ToUpperInvariant();
 
         // Trả về true nếu thêm mới, false nếu cập nhật
-        private async Task<bool> XuLyDongAsync(DongNhap d, HashSet<string> lopDuocPhep, bool isAdmin)
+        private async Task<bool> XuLyDongAsync(IXLWorksheet ws, int r, string maSV,
+            Dictionary<string, string> lopDangDung, HashSet<string> lopDuocPhep)
         {
-            var hienCo = await _context.SinhViens.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.MaSV == d.MaSV);
+            if (maSV.Length == 0) throw new DongLoiException(CotMaSV, "Thiếu mã sinh viên");
 
-            if (hienCo != null && hienCo.DaXoa)
-                throw new DongLoiException("Mã SV trùng với hồ sơ đã xóa mềm, không được dùng lại.");
-            if (!lopDuocPhep.Contains(d.MaLop))
-                throw new DongLoiException($"Lớp '{d.MaLop}' không tồn tại hoặc ngoài phạm vi được phép.");
-            if (hienCo != null && !lopDuocPhep.Contains(hienCo.MaLop))
-                throw new DongLoiException("Hồ sơ hiện có nằm ngoài phạm vi được phép.");
+            var daXoa = await _context.SinhViens.IgnoreQueryFilters().AsNoTracking()
+                .Where(s => s.MaSV == maSV)
+                .Select(s => (bool?)s.DaXoa)
+                .FirstOrDefaultAsync();
+            if (daXoa == true)
+                throw new DongLoiException(CotMaSV, "Mã SV trùng với hồ sơ đã xóa mềm, không được dùng lại");
+            var themMoi = daXoa == null;
 
-            return hienCo == null
-                ? await ThemMoiAsync(d)
-                : await CapNhatAsync(hienCo, d, isAdmin);
-        }
+            var loi = new List<LoiCot>();
 
-        // Thêm hồ sơ và tài khoản trong cùng một giao dịch (theo FR-13)
-        private async Task<bool> ThemMoiAsync(DongNhap d)
-        {
-            if (d.MatKhau == null)
-                throw new DongLoiException("Dòng thêm mới bắt buộc có mật khẩu ban đầu.");
+            var ngaySinh = DocNgay(ws.Cell(r, 3), loi);
+            var gioiTinh = DocEnum(DocText(ws, r, 4), Enum.GetValues<GioiTinh>(), EnumExtensions.TenHienThi);
+            if (gioiTinh == null) loi.Add(new LoiCot(CotGioiTinh, "Giới tính phải là Nam, Nữ hoặc Khác"));
+            var trangThai = DocEnum(DocText(ws, r, 9), Enum.GetValues<TrangThaiHocTap>(), EnumExtensions.TenHienThi);
+            if (trangThai == null) loi.Add(new LoiCot(CotTrangThai, "Trạng thái phải là Đang học, Bảo lưu, Đã tốt nghiệp hoặc Thôi học"));
 
-            await using var tx = await _context.Database.BeginTransactionAsync();
-            try
+            var maLop = KiemTraLop(DocText(ws, r, 5), lopDangDung, lopDuocPhep, loi);
+
+            var matKhau = DocText(ws, r, 10);
+            if (themMoi && matKhau == null) loi.Add(new LoiCot(CotMatKhau, "Dòng thêm mới thiếu mật khẩu ban đầu"));
+
+            // Dùng cùng ViewModel với form nhập tay để quy tắc dữ liệu chỉ có một nơi (mục 3.4)
+            var thongTin = new StudentEditVm
             {
-                _context.SinhViens.Add(new SinhVien
-                {
-                    MaSV = d.MaSV,
-                    HoTen = d.HoTen,
-                    HoTenKhongDau = TextHelper.BoDau(d.HoTen),
-                    NgaySinh = d.NgaySinh,
-                    GioiTinh = d.GioiTinh,
-                    MaLop = d.MaLop,
-                    SDT = d.SDT,
-                    Email = d.Email,
-                    DiaChi = d.DiaChi,
-                    TrangThai = d.TrangThai,
-                    NgayTao = DateTime.UtcNow
-                });
-                await _auditLog.LogAsync("TaoHoSo", "SinhVien", d.MaSV);
-                await _context.SaveChangesAsync();
+                MaSV = maSV,
+                HoTen = DocText(ws, r, 2) ?? "",
+                NgaySinh = ngaySinh,
+                GioiTinh = gioiTinh,
+                SDT = DocText(ws, r, 6),
+                Email = DocText(ws, r, 7),
+                DiaChi = DocText(ws, r, 8)
+            };
 
-                // Lỗi tạo tài khoản: rollback cả hồ sơ mới (FR-13)
-                var taoTaiKhoan = await _account.CreateStudentAccountAsync(d.MaSV, d.MatKhau);
-                if (!taoTaiKhoan.Succeeded)
-                    throw new DongLoiException("Tạo tài khoản thất bại: " + taoTaiKhoan.Error);
-
-                // Hồ sơ Thôi học: tài khoản ở trạng thái khóa (FR-16)
-                if (d.TrangThai == TrangThaiHocTap.ThoiHoc)
-                {
-                    var khoa = await _account.SetLockAsync(d.MaSV, true, "Nhập Excel: hồ sơ Thôi học");
-                    if (!khoa.Succeeded)
-                        throw new DongLoiException("Không khóa được tài khoản sinh viên Thôi học.");
-                }
-
-                await tx.CommitAsync();
-                return true;
-            }
-            catch (DongLoiException)
+            if (!themMoi)
             {
-                await tx.RollbackAsync();
-                throw;
-            }
-            catch (DbUpdateException)
-            {
-                await tx.RollbackAsync();
-                throw new DongLoiException("Không lưu được hồ sơ (vi phạm ràng buộc dữ liệu).");
-            }
-        }
-
-        // Cập nhật hồ sơ theo Mã SV; giữ nguyên tài khoản và mật khẩu.
-        // Đổi lớp theo FR-17 (lớp hiện tại và lớp đích đều đã được kiểm tra phạm vi ở XuLyDongAsync),
-        // đổi trạng thái theo FR-16; không tự mở khóa tài khoản (FR-20)
-        private async Task<bool> CapNhatAsync(SinhVien sv, DongNhap d, bool isAdmin)
-        {
-            var doiLop = !string.Equals(sv.MaLop, d.MaLop, StringComparison.OrdinalIgnoreCase);
-            var doiTrangThai = sv.TrangThai != d.TrangThai;
-            if (doiTrangThai)
-            {
-                var loi = KiemTraChuyenTrangThai(sv.TrangThai, d.TrangThai, isAdmin);
-                if (loi != null) throw new DongLoiException(loi);
-            }
-
-            var lopCu = sv.MaLop;
-            var trangThaiCu = sv.TrangThai;
-
-            if (doiLop) sv.MaLop = d.MaLop;
-            if (doiTrangThai) sv.TrangThai = d.TrangThai;
-            if (doiLop || doiTrangThai) sv.DaCoBienDong = true;
-            sv.HoTen = d.HoTen;
-            sv.HoTenKhongDau = TextHelper.BoDau(d.HoTen);
-            sv.NgaySinh = d.NgaySinh;
-            sv.GioiTinh = d.GioiTinh;
-            // Ô trống ở trường liên hệ tùy chọn giữ giá trị hiện có
-            if (d.SDT != null) sv.SDT = d.SDT;
-            if (d.Email != null) sv.Email = d.Email;
-            if (d.DiaChi != null) sv.DiaChi = d.DiaChi;
-
-            await using var tx = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                await _auditLog.LogAsync("SuaHoSo", "SinhVien", sv.MaSV);
-                if (doiLop) await _auditLog.LogAsync("ChuyenLop", "SinhVien", sv.MaSV, $"{lopCu} -> {d.MaLop}");
-                if (doiTrangThai)
-                    await _auditLog.LogAsync("DoiTrangThai", "SinhVien", sv.MaSV,
-                        $"{trangThaiCu.TenHienThi()} -> {d.TrangThai.TenHienThi()}");
-                await _context.SaveChangesAsync();
-
-                // Chuyển sang Thôi học tự động khóa tài khoản (FR-16)
-                if (doiTrangThai && d.TrangThai == TrangThaiHocTap.ThoiHoc)
-                {
-                    var userName = await _context.Users.AsNoTracking()
-                        .Where(u => u.MaSV == sv.MaSV && u.TrangThaiTaiKhoan != TrangThaiTaiKhoan.BiKhoa)
-                        .Select(u => u.UserName)
-                        .FirstOrDefaultAsync();
-                    if (userName != null)
-                    {
-                        var khoa = await _account.SetLockAsync(userName, true, "Nhập Excel: chuyển sang Thôi học");
-                        if (!khoa.Succeeded)
-                            throw new DongLoiException("Không khóa được tài khoản sinh viên Thôi học.");
-                    }
-                }
-
-                await tx.CommitAsync();
+                KiemTraVm(thongTin, loi);
+                NemNeuCoLoi(loi);
+                await _students.UpdateFromImportAsync(thongTin, maLop!, trangThai!.Value);
                 return false;
             }
-            catch (DongLoiException)
+
+            var hoSoMoi = new StudentCreateVm
             {
-                await tx.RollbackAsync();
-                throw;
-            }
-            catch (DbUpdateException)
-            {
-                await tx.RollbackAsync();
-                throw new DongLoiException("Không lưu được hồ sơ (vi phạm ràng buộc dữ liệu).");
-            }
+                MaSV = maSV,
+                HoTen = thongTin.HoTen,
+                NgaySinh = ngaySinh,
+                GioiTinh = gioiTinh,
+                MaLop = maLop ?? "",
+                TrangThai = trangThai ?? TrangThaiHocTap.DangHoc,
+                SDT = thongTin.SDT,
+                Email = thongTin.Email,
+                DiaChi = thongTin.DiaChi,
+                MatKhau = matKhau ?? ""
+            };
+            KiemTraVm(hoSoMoi, loi);
+            NemNeuCoLoi(loi);
+            await _students.CreateAsync(hoSoMoi);
+            return true;
         }
 
-        // Quy tắc chuyển trạng thái FR-16; trả về thông báo lỗi hoặc null nếu hợp lệ
-        private static string? KiemTraChuyenTrangThai(TrangThaiHocTap cu, TrangThaiHocTap moi, bool isAdmin)
+        private static void NemNeuCoLoi(List<LoiCot> loi)
         {
-            switch (cu)
+            if (loi.Count > 0) throw new DongLoiException(loi);
+        }
+
+        private static string? KiemTraLop(string? maLop, Dictionary<string, string> lopDangDung,
+            HashSet<string> lopDuocPhep, List<LoiCot> loi)
+        {
+            if (maLop == null)
             {
-                case TrangThaiHocTap.DangHoc when moi is TrangThaiHocTap.BaoLuu or TrangThaiHocTap.DaTotNghiep or TrangThaiHocTap.ThoiHoc:
-                case TrangThaiHocTap.BaoLuu when moi is TrangThaiHocTap.DangHoc or TrangThaiHocTap.ThoiHoc:
-                    return null;
-                case TrangThaiHocTap.ThoiHoc when moi == TrangThaiHocTap.DangHoc:
-                    return isAdmin ? null : "Chỉ Admin được chuyển Thôi học → Đang học.";
-                case TrangThaiHocTap.DaTotNghiep:
-                    // Admin sửa trạng thái hồ sơ Đã tốt nghiệp bắt buộc kèm lý do - file import không có cột lý do
-                    return "Hồ sơ Đã tốt nghiệp chỉ được Admin sửa trạng thái kèm lý do qua chức năng Đổi trạng thái.";
-                default:
-                    return "Chuyển trạng thái không hợp lệ theo quy tắc FR-16.";
+                loi.Add(new LoiCot(CotMaLop, "Thiếu mã lớp"));
+                return null;
+            }
+            if (!lopDangDung.TryGetValue(maLop, out var maChuan))
+            {
+                loi.Add(new LoiCot(CotMaLop, $"Lớp {TextHelper.CatChuoi(maLop, 30)} không tồn tại hoặc đã ngừng sử dụng"));
+                return null;
+            }
+            if (!lopDuocPhep.Contains(maChuan))
+            {
+                loi.Add(new LoiCot(CotMaLop, $"Lớp {maChuan} không thuộc khoa phụ trách"));
+                return null;
+            }
+            return maChuan;
+        }
+
+        private static void KiemTraVm(object vm, List<LoiCot> loi)
+        {
+            var ketQua = new List<ValidationResult>();
+            Validator.TryValidateObject(vm, new ValidationContext(vm), ketQua, validateAllProperties: true);
+
+            foreach (var kq in ketQua)
+            {
+                foreach (var truong in kq.MemberNames)
+                {
+                    var cot = truong == nameof(StudentCreateVm.MatKhau) ? CotMatKhau : truong;
+                    // Mỗi cột báo một lỗi; lỗi đọc giá trị (ngày, giới tính, lớp...) đã ghi trước đó
+                    if (loi.All(l => l.Cot != cot)) loi.Add(new LoiCot(cot, kq.ErrorMessage ?? "Dữ liệu không hợp lệ"));
+                }
             }
         }
 
-        private static DateTime? DocNgay(IXLCell cell)
+        // BM02: ô kiểu ngày hoặc chuỗi dd/MM/yyyy
+        private static DateTime? DocNgay(IXLCell cell, List<LoiCot> loi)
         {
             if (cell.DataType == XLDataType.DateTime) return cell.GetDateTime().Date;
+
             var s = cell.GetString().Trim();
-            return DateTime.TryParseExact(s, new[] { "dd/MM/yyyy", "d/M/yyyy", "yyyy-MM-dd" },
-                CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+            if (s.Length == 0)
+            {
+                loi.Add(new LoiCot(CotNgaySinh, "Thiếu ngày sinh"));
+                return null;
+            }
+            if (DateTime.TryParseExact(s, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) return d;
+
+            loi.Add(new LoiCot(CotNgaySinh, $"Ngày sinh \"{TextHelper.CatChuoi(s, 30)}\" không hợp lệ"));
+            return null;
+        }
+
+        // Giá trị theo đúng tên hiển thị trong BM02, không phân biệt hoa thường
+        private static T? DocEnum<T>(string? text, T[] giaTri, Func<T, string> tenHienThi) where T : struct
+        {
+            if (text == null) return null;
+            var chuan = text.Normalize(NormalizationForm.FormC);
+            foreach (var v in giaTri)
+                if (string.Equals(tenHienThi(v), chuan, StringComparison.OrdinalIgnoreCase)) return v;
+            return null;
+        }
+
+        // ===================== File danh sách lỗi (BM05) =====================
+
+        private static byte[] TaoFileLoi(List<ImportErrorDto> loi)
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.Worksheets.Add("Loi");
+            string[] cot = { "Dòng", "Mã SV", "Cột", "Nội dung lỗi" };
+            for (int c = 0; c < cot.Length; c++)
+                ws.Cell(1, c + 1).Value = cot[c];
+            ws.Row(1).Style.Font.Bold = true;
+
+            for (int i = 0; i < loi.Count; i++)
+            {
+                ws.Cell(i + 2, 1).Value = loi[i].Dong;
+                ws.Cell(i + 2, 2).Value = loi[i].MaSV ?? "";
+                ws.Cell(i + 2, 3).Value = loi[i].Cot;
+                ws.Cell(i + 2, 4).Value = loi[i].NoiDung;
+            }
+            ws.Columns().AdjustToContents();
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            return ms.ToArray();
         }
     }
 }

@@ -1,3 +1,4 @@
+using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
 
 namespace StudentPortal.Services.Interfaces
@@ -18,5 +19,8 @@ namespace StudentPortal.Services.Interfaces
         Task SoftDeleteAsync(StudentDeleteVm dto);
         Task ResetPasswordAsync(StudentResetPasswordVm dto);
         Task<StudentDetailVm> SetLockAsync(StudentSetLockVm dto);
+
+        // FR-30: cập nhật hồ sơ đã có theo một dòng Excel, áp dụng quy tắc FR-15, FR-16, FR-17, FR-20
+        Task UpdateFromImportAsync(StudentEditVm dto, string maLop, TrangThaiHocTap trangThai);
     }
 }

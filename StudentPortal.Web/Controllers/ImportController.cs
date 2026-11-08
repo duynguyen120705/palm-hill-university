@@ -14,12 +14,10 @@ namespace StudentPortal.Controllers
         private const long KichThuocToiDa = 5 * 1024 * 1024;
 
         private readonly IImportService _importService;
-        private readonly ILogger<ImportController> _logger;
 
-        public ImportController(IImportService importService, ILogger<ImportController> logger)
+        public ImportController(IImportService importService)
         {
             _importService = importService;
-            _logger = logger;
         }
 
         // GET: /Import
@@ -35,7 +33,7 @@ namespace StudentPortal.Controllers
             return File(_importService.CreateTemplate(), ReportFileBuilder.ExcelContentType, "MauNhapSinhVien.xlsx");
         }
 
-        // POST: /Import/Upload (multipart/form-data, Ajax)
+        // POST: /Import/Upload (multipart/form-data, Ajax); trả báo cáo BM05
         [HttpPost]
         [RequestSizeLimit(KichThuocToiDa + 64 * 1024)]
         public async Task<IActionResult> Upload(IFormFile? file)
@@ -47,23 +45,9 @@ namespace StudentPortal.Controllers
             if (file.Length > KichThuocToiDa)
                 return BadRequest(ApiResponse.Fail("File vượt quá 5 MB."));
 
-            try
-            {
-                await using var stream = file.OpenReadStream();
-                var data = await _importService.ImportAsync(stream, Path.GetFileName(file.FileName));
-                return Ok(ApiResponse.Ok(data,
-                    $"Nhập xong: {data.SoThemMoi} thêm mới, {data.SoCapNhat} cập nhật, {data.SoLoi} lỗi."));
-            }
-            catch (InvalidDataException ex)
-            {
-                return BadRequest(ApiResponse.Fail(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi nhập file Excel");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    ApiResponse.Fail("Không đọc được file. Hãy dùng đúng file mẫu .xlsx."));
-            }
+            await using var stream = file.OpenReadStream();
+            var data = await _importService.ImportAsync(stream, Path.GetFileName(file.FileName));
+            return Ok(ApiResponse.Ok(data));
         }
     }
 }

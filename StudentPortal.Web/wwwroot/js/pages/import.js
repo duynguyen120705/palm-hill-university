@@ -2,55 +2,77 @@
 $(function () {
     'use strict';
 
+    const KICH_THUOC_TOI_DA = 5 * 1024 * 1024;
+    let fileLoiBase64 = null;
+
     // Tạo ô bảng bằng .text() để tránh XSS
-    function cell(text) {
-        return $('<td>').text(text);
+    function cell(text, className) {
+        return $('<td>').text(text).addClass(className || '');
     }
 
-    function showResult(res) {
-        const d = res.data;
-        $('#importResult').removeClass('d-none');
-        $('#importSummary')
-            .removeClass('alert-success alert-warning alert-danger')
-            .addClass(d.soLoi > 0 ? 'alert-warning' : 'alert-success')
-            .text(res.message);
+    function anKetQua() {
+        $('#importResult, #importLoi').addClass('d-none');
+    }
+
+    // Báo cáo kết quả BM05
+    function showResult(d) {
+        $('#importMeta').text('File: ' + d.tenFile + ' – Người nhập: ' + d.nguoiNhap + ' – ' + d.thoiDiem);
+        $('#soTong').text(d.tongSoDong);
+        $('#soThem').text(d.soThemMoi);
+        $('#soSua').text(d.soCapNhat);
+        $('#soLoi').text(d.soLoi);
 
         const $errors = $('#importErrors').empty();
-        $('#importErrorsWrap').toggleClass('d-none', d.loi.length === 0);
         d.loi.forEach(function (e) {
-            $errors.append($('<tr>').append(cell(e.dong), cell(e.maSV || ''), cell(e.loi)));
+            $errors.append($('<tr>').append(cell(e.dong, 'text-center'), cell(e.maSV || ''), cell(e.cot), cell(e.noiDung)));
         });
+        $('#importErrorsWrap').toggleClass('d-none', d.loi.length === 0);
+
+        fileLoiBase64 = d.fileLoiBase64;
+        $('#importResult').removeClass('d-none');
     }
 
     function showError(message) {
-        $('#importResult').removeClass('d-none');
-        $('#importErrorsWrap').addClass('d-none');
-        $('#importSummary')
-            .removeClass('alert-success alert-warning')
-            .addClass('alert-danger')
-            .text(message);
+        $('#importLoi').removeClass('d-none').text(message);
     }
+
+    $('#btnTaiLoi').on('click', function () {
+        if (!fileLoiBase64) return;
+        const bytes = Uint8Array.from(atob(fileLoiBase64), function (c) { return c.charCodeAt(0); });
+        const blobUrl = URL.createObjectURL(new Blob([bytes], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        }));
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = 'DanhSachLoiNhap.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+    });
 
     $('#formImport').on('submit', function (e) {
         e.preventDefault();
+        anKetQua();
 
         const file = $('#fileExcel')[0].files[0];
         if (!file) return showError('Vui lòng chọn file Excel.');
+        if (file.size > KICH_THUOC_TOI_DA) return showError('File vượt quá 5 MB.');
 
         const formData = new FormData();
         formData.append('file', file);
 
         $('#btnImport').prop('disabled', true);
-        $('#importSpinner').removeClass('d-none');
+        $('#importProgress').removeClass('d-none');
 
         App.upload('/Import/Upload', formData).then(function (res) {
-            showResult(res);
+            showResult(res.data);
             $('#formImport')[0].reset();
         }).catch(function (err) {
             showError(err.message);
         }).finally(function () {
             $('#btnImport').prop('disabled', false);
-            $('#importSpinner').addClass('d-none');
+            $('#importProgress').addClass('d-none');
         });
     });
 });

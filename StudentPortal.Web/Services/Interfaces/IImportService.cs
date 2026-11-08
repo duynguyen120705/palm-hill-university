@@ -8,7 +8,7 @@ namespace StudentPortal.Services.Interfaces
         // File mẫu BM02
         byte[] CreateTemplate();
 
-        // File chỉ đọc trong bộ nhớ; InvalidDataException khi sai mẫu
+        // File chỉ đọc trong bộ nhớ; NghiepVuException (HTTP 400) khi sai định dạng hoặc sai mẫu
         Task<ImportResultDto> ImportAsync(Stream file, string tenFile);
     }
 }

@@ -5,6 +5,9 @@ namespace StudentPortal.Infrastructure
     {
         public int StatusCode { get; }
 
+        // Trường gây lỗi, dùng cho báo cáo nhập Excel BM05
+        public string? Truong { get; init; }
+
         public NghiepVuException(string message, int statusCode = 400) : base(message)
         {
             StatusCode = statusCode;

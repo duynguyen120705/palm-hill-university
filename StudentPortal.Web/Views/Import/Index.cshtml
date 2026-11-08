@@ -15,15 +15,15 @@
                 <input type="file" id="fileExcel" name="file" class="form-control" accept=".xlsx" required />
             </div>
             <div class="col-6 col-md-2 d-grid">
-                <button type="submit" id="btnImport" class="btn btn-primary">
-                    <span class="spinner-border spinner-border-sm me-1 d-none" id="importSpinner" role="status" aria-hidden="true"></span>
-                    <i class="bi bi-upload me-1"></i>Nhập
-                </button>
+                <button type="submit" id="btnImport" class="btn btn-primary"><i class="bi bi-upload me-1"></i>Tải lên</button>
             </div>
             <div class="col-6 col-md-3 d-grid">
                 <a class="btn btn-outline-secondary" asp-action="Template"><i class="bi bi-download me-1"></i>Tải file mẫu</a>
             </div>
         </form>
+        <div id="importProgress" class="progress mt-3 d-none" role="progressbar" aria-label="Đang xử lý file">
+            <div class="progress-bar progress-bar-striped progress-bar-animated w-100">Đang xử lý...</div>
+        </div>
         <div class="form-text mt-2">
             Dòng có Mã SV mới sẽ tạo hồ sơ kèm tài khoản; Mã SV đã có sẽ cập nhật hồ sơ (giữ nguyên tài khoản, mật khẩu).
             Đổi lớp/trạng thái áp dụng quy tắc chuyển lớp và chuyển trạng thái; chuyển sang Thôi học sẽ khóa tài khoản.
@@ -31,15 +31,33 @@
     </div>
 </div>
 
-<div id="importResult" class="d-none mb-3">
-    <div id="importSummary" class="alert mb-2" role="status"></div>
-    <div id="importErrorsWrap" class="card shadow-sm d-none">
-        <div class="card-header bg-white fw-semibold text-danger">Các dòng lỗi</div>
-        <div class="table-responsive" style="max-height: 320px;">
-            <table class="table table-sm mb-0">
-                <thead class="table-light"><tr><th>Dòng</th><th>Mã SV</th><th>Lỗi</th></tr></thead>
-                <tbody id="importErrors"></tbody>
-            </table>
+<div id="importLoi" class="alert alert-danger d-none" role="alert"></div>
+
+@* Báo cáo kết quả BM05 *@
+<div id="importResult" class="card shadow-sm d-none mb-3">
+    <div class="card-body">
+        <div class="text-end fst-italic small">Mẫu BM05</div>
+        <h5 class="text-center fw-bold mb-1">KẾT QUẢ NHẬP DANH SÁCH SINH VIÊN</h5>
+        <p class="text-center fst-italic mb-3" id="importMeta"></p>
+
+        <div class="row g-2 text-center mb-3">
+            <div class="col-6 col-md-3"><div class="border rounded p-2">Tổng số dòng<div class="fs-3 fw-bold" id="soTong"></div></div></div>
+            <div class="col-6 col-md-3"><div class="border rounded p-2">Thêm mới<div class="fs-3 fw-bold" id="soThem"></div></div></div>
+            <div class="col-6 col-md-3"><div class="border rounded p-2">Cập nhật<div class="fs-3 fw-bold" id="soSua"></div></div></div>
+            <div class="col-6 col-md-3"><div class="border border-2 border-danger rounded p-2">Lỗi<div class="fs-3 fw-bold" id="soLoi"></div></div></div>
+        </div>
+
+        <div id="importErrorsWrap" class="d-none">
+            <p class="fw-semibold mb-2">Chi tiết dòng lỗi (các dòng lỗi không được ghi; các dòng hợp lệ đã được lưu):</p>
+            <div class="table-responsive" style="max-height: 320px;">
+                <table class="table table-sm table-bordered mb-3">
+                    <thead class="table-light"><tr><th class="text-center">Dòng</th><th>Mã SV</th><th>Cột</th><th>Nội dung lỗi</th></tr></thead>
+                    <tbody id="importErrors"></tbody>
+                </table>
+            </div>
+            <div class="text-end">
+                <button type="button" id="btnTaiLoi" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i>Tải danh sách lỗi (.xlsx)</button>
+            </div>
         </div>
     </div>
 </div>

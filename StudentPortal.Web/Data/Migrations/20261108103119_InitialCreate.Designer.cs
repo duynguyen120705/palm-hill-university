@@ -9,10 +9,10 @@ using StudentPortal.Data;
 
 #nullable disable
 
-namespace StudentPortal.Migrations
+namespace StudentPortal.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261014132133_InitialCreate")]
+    [Migration("20261108103119_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -158,7 +158,7 @@ namespace StudentPortal.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.ApplicationUser", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
                         .HasColumnType("nvarchar(450)");
@@ -181,7 +181,7 @@ namespace StudentPortal.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<DateTime?>("LanDangNhapDauTien")
+                    b.Property<DateTime?>("LanDangNhapCuoi")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("LockoutEnabled")
@@ -190,15 +190,24 @@ namespace StudentPortal.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("LyDoKhoa")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("MaKhoaPhuTrach")
-                        .HasMaxLength(20)
+                        .HasMaxLength(15)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("varchar(15)");
 
                     b.Property<string>("MaSV")
                         .HasMaxLength(15)
                         .IsUnicode(false)
                         .HasColumnType("varchar(15)");
+
+                    b.Property<DateTime>("NgayTao")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -220,8 +229,8 @@ namespace StudentPortal.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TrangThaiTaiKhoan")
-                        .HasColumnType("int");
+                    b.Property<byte>("TrangThaiTaiKhoan")
+                        .HasColumnType("tinyint");
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
@@ -249,17 +258,22 @@ namespace StudentPortal.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.Khoa", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.Khoa", b =>
                 {
                     b.Property<string>("MaKhoa")
-                        .HasMaxLength(20)
+                        .HasMaxLength(15)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("varchar(15)");
 
                     b.Property<bool>("DaXoa")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<DateTime>("NgayTao")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("TenKhoa")
                         .IsRequired()
@@ -268,15 +282,15 @@ namespace StudentPortal.Migrations
 
                     b.HasKey("MaKhoa");
 
-                    b.ToTable("KHOA");
+                    b.ToTable("Khoa", (string)null);
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.KhoaHoc", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.KhoaHoc", b =>
                 {
                     b.Property<string>("MaKhoaHoc")
-                        .HasMaxLength(20)
+                        .HasMaxLength(15)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("varchar(15)");
 
                     b.Property<bool>("DaXoa")
                         .ValueGeneratedOnAdd()
@@ -286,65 +300,25 @@ namespace StudentPortal.Migrations
                     b.Property<int>("NamNhapHoc")
                         .HasColumnType("int");
 
-                    b.HasKey("MaKhoaHoc");
-
-                    b.ToTable("KHOA_HOC");
-                });
-
-            modelBuilder.Entity("StudentPortal.Models.LichSuHoSoSinhVien", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("GiaTriCu")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("GiaTriMoi")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("Loai")
-                        .HasColumnType("int");
-
-                    b.Property<string>("LyDo")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("MaSV")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(15)");
-
-                    b.Property<string>("NguoiThucHien")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<DateTime>("ThoiDiem")
+                    b.Property<DateTime>("NgayTao")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.HasKey("Id");
+                    b.HasKey("MaKhoaHoc");
 
-                    b.HasIndex("MaSV");
-
-                    b.HasIndex("ThoiDiem");
-
-                    b.ToTable("LICH_SU_HO_SO_SINH_VIEN");
+                    b.ToTable("KhoaHoc", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_KhoaHoc_NamNhapHoc", "[NamNhapHoc] BETWEEN 2000 AND YEAR(GETDATE()) + 1");
+                        });
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.Lop", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.Lop", b =>
                 {
                     b.Property<string>("MaLop")
-                        .HasMaxLength(20)
+                        .HasMaxLength(15)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("varchar(15)");
 
                     b.Property<bool>("DaXoa")
                         .ValueGeneratedOnAdd()
@@ -353,32 +327,39 @@ namespace StudentPortal.Migrations
 
                     b.Property<string>("MaKhoa")
                         .IsRequired()
-                        .HasMaxLength(20)
+                        .HasMaxLength(15)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("varchar(15)");
 
                     b.Property<string>("MaKhoaHoc")
                         .IsRequired()
-                        .HasMaxLength(20)
+                        .HasMaxLength(15)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("varchar(15)");
+
+                    b.Property<DateTime>("NgayTao")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
 
                     b.Property<string>("TenLop")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.HasKey("MaLop");
+
+                    b.HasIndex("MaKhoa");
 
                     b.HasIndex("MaKhoaHoc");
 
                     b.HasIndex("MaKhoa", "MaKhoaHoc", "TenLop")
                         .IsUnique();
 
-                    b.ToTable("LOP");
+                    b.ToTable("Lop", (string)null);
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.NhatKyThaoTac", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.NhatKyThaoTac", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -386,20 +367,26 @@ namespace StudentPortal.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("ChiTiet")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("DoiTuongLoai")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
 
                     b.Property<string>("DoiTuongMa")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("HanhDong")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(50)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(50)");
 
                     b.Property<DateTime>("ThoiDiem")
                         .ValueGeneratedOnAdd()
@@ -413,21 +400,27 @@ namespace StudentPortal.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ThoiDiem");
+                    b.HasIndex("DoiTuongMa");
+
+                    b.HasIndex("ThoiDiem")
+                        .IsDescending();
 
                     b.HasIndex("Username");
 
-                    b.HasIndex("DoiTuongLoai", "DoiTuongMa");
-
-                    b.ToTable("NHAT_KY_THAO_TAC");
+                    b.ToTable("NhatKyThaoTac", (string)null);
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.SinhVien", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.SinhVien", b =>
                 {
                     b.Property<string>("MaSV")
                         .HasMaxLength(15)
                         .IsUnicode(false)
                         .HasColumnType("varchar(15)");
+
+                    b.Property<bool>("DaCoBienDong")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("DaXoa")
                         .ValueGeneratedOnAdd()
@@ -435,20 +428,27 @@ namespace StudentPortal.Migrations
                         .HasDefaultValue(false);
 
                     b.Property<string>("DiaChi")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)");
 
-                    b.Property<int>("GioiTinh")
-                        .HasColumnType("int");
+                    b.Property<byte>("GioiTinh")
+                        .HasColumnType("tinyint");
 
                     b.Property<string>("HoTen")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("HoTenKhongDau")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("LyDoXoa")
                         .HasMaxLength(500)
@@ -456,14 +456,12 @@ namespace StudentPortal.Migrations
 
                     b.Property<string>("MaLop")
                         .IsRequired()
-                        .HasMaxLength(20)
+                        .HasMaxLength(15)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("varchar(15)");
 
-                    b.Property<DateTime>("NgayCapNhat")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                    b.Property<DateTime?>("NgayCapNhat")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("NgaySinh")
                         .HasColumnType("date");
@@ -480,32 +478,28 @@ namespace StudentPortal.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("SDT")
                         .HasMaxLength(10)
                         .IsUnicode(false)
                         .HasColumnType("varchar(10)");
 
-                    b.Property<int>("TrangThai")
-                        .HasColumnType("int");
+                    b.Property<byte>("TrangThai")
+                        .HasColumnType("tinyint");
 
                     b.HasKey("MaSV");
 
-                    b.HasIndex("Email")
-                        .IsUnique()
-                        .HasFilter("[Email] IS NOT NULL");
+                    b.HasIndex("DaXoa");
 
-                    b.HasIndex("HoTen");
+                    b.HasIndex("HoTenKhongDau");
 
                     b.HasIndex("MaLop");
 
                     b.HasIndex("TrangThai");
 
-                    b.ToTable("SINH_VIEN");
+                    b.ToTable("SinhVien", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SinhVien_LyDoXoa", "[DaXoa] = 0 OR [LyDoXoa] IS NOT NULL");
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -519,7 +513,7 @@ namespace StudentPortal.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("StudentPortal.Models.ApplicationUser", null)
+                    b.HasOne("StudentPortal.Models.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -528,7 +522,7 @@ namespace StudentPortal.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("StudentPortal.Models.ApplicationUser", null)
+                    b.HasOne("StudentPortal.Models.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -543,7 +537,7 @@ namespace StudentPortal.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudentPortal.Models.ApplicationUser", null)
+                    b.HasOne("StudentPortal.Models.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -552,50 +546,39 @@ namespace StudentPortal.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("StudentPortal.Models.ApplicationUser", null)
+                    b.HasOne("StudentPortal.Models.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.ApplicationUser", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.ApplicationUser", b =>
                 {
-                    b.HasOne("StudentPortal.Models.Khoa", "KhoaPhuTrach")
+                    b.HasOne("StudentPortal.Models.Entities.Khoa", "KhoaPhuTrach")
                         .WithMany("CanBoPhuTrachs")
                         .HasForeignKey("MaKhoaPhuTrach")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("StudentPortal.Models.SinhVien", "SinhVien")
+                    b.HasOne("StudentPortal.Models.Entities.SinhVien", "SinhVien")
                         .WithOne("TaiKhoan")
-                        .HasForeignKey("StudentPortal.Models.ApplicationUser", "MaSV")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("StudentPortal.Models.Entities.ApplicationUser", "MaSV")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("KhoaPhuTrach");
 
                     b.Navigation("SinhVien");
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.LichSuHoSoSinhVien", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.Lop", b =>
                 {
-                    b.HasOne("StudentPortal.Models.SinhVien", "SinhVien")
-                        .WithMany("LichSuHoSos")
-                        .HasForeignKey("MaSV")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SinhVien");
-                });
-
-            modelBuilder.Entity("StudentPortal.Models.Lop", b =>
-                {
-                    b.HasOne("StudentPortal.Models.Khoa", "Khoa")
+                    b.HasOne("StudentPortal.Models.Entities.Khoa", "Khoa")
                         .WithMany("Lops")
                         .HasForeignKey("MaKhoa")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("StudentPortal.Models.KhoaHoc", "KhoaHoc")
+                    b.HasOne("StudentPortal.Models.Entities.KhoaHoc", "KhoaHoc")
                         .WithMany("Lops")
                         .HasForeignKey("MaKhoaHoc")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -606,9 +589,9 @@ namespace StudentPortal.Migrations
                     b.Navigation("KhoaHoc");
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.SinhVien", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.SinhVien", b =>
                 {
-                    b.HasOne("StudentPortal.Models.Lop", "Lop")
+                    b.HasOne("StudentPortal.Models.Entities.Lop", "Lop")
                         .WithMany("SinhViens")
                         .HasForeignKey("MaLop")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -617,27 +600,25 @@ namespace StudentPortal.Migrations
                     b.Navigation("Lop");
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.Khoa", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.Khoa", b =>
                 {
                     b.Navigation("CanBoPhuTrachs");
 
                     b.Navigation("Lops");
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.KhoaHoc", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.KhoaHoc", b =>
                 {
                     b.Navigation("Lops");
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.Lop", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.Lop", b =>
                 {
                     b.Navigation("SinhViens");
                 });
 
-            modelBuilder.Entity("StudentPortal.Models.SinhVien", b =>
+            modelBuilder.Entity("StudentPortal.Models.Entities.SinhVien", b =>
                 {
-                    b.Navigation("LichSuHoSos");
-
                     b.Navigation("TaiKhoan");
                 });
 #pragma warning restore 612, 618

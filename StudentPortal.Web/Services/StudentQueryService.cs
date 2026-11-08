@@ -23,13 +23,12 @@ namespace StudentPortal.Services
             // Phạm vi (FR-09) trước; global query filter đã loại hồ sơ xóa mềm
             var query = _scope.ApplyStudentScope(_context.SinhViens.AsNoTracking());
 
-            // Không phân biệt hoa thường và dấu ("nguyen" khớp "Nguyễn", "do" khớp "Đỗ")
+            // Không phân biệt hoa thường và dấu: chuẩn hóa từ khóa rồi tìm theo HoTenKhongDau (FR-22)
             if (!string.IsNullOrWhiteSpace(filter.Keyword))
             {
                 var kw = filter.Keyword.Trim();
-                query = query.Where(s =>
-                    EF.Functions.Collate(s.HoTen, TextHelper.CollationKhongDau).Contains(kw) ||
-                    s.MaSV.Contains(kw));
+                var kwKhongDau = TextHelper.BoDau(kw);
+                query = query.Where(s => s.HoTenKhongDau.Contains(kwKhongDau) || s.MaSV.Contains(kw));
             }
 
             if (!string.IsNullOrWhiteSpace(filter.MaKhoa))
@@ -44,23 +43,23 @@ namespace StudentPortal.Services
             return query;
         }
 
-        public async Task<PagedResultDto<SinhVienItemDto>> SearchAsync(StudentFilter filter)
+        public async Task<PagedResult<StudentListItemDto>> SearchAsync(StudentFilter filter)
         {
             return await BuildQuery(filter)
                 .OrderBy(s => s.MaSV)
-                .ToPagedResultAsync(filter.Page, filter.PageSize, s => new SinhVienItemDto
+                .ToPagedResultAsync(filter.Page, filter.PageSize, s => new StudentListItemDto
                 {
                     MaSV = s.MaSV,
                     HoTen = s.HoTen,
                     NgaySinhFormatted = s.NgaySinh.ToString("dd/MM/yyyy"),
                     GioiTinh = s.GioiTinh,
-                    GioiTinhText = MaTrangThai.TenGioiTinh(s.GioiTinh),
+                    GioiTinhText = s.GioiTinh.TenHienThi(),
                     MaLop = s.MaLop,
                     TenLop = s.Lop!.TenLop,
                     SDT = s.SDT,
                     Email = s.Email,
                     TrangThai = s.TrangThai,
-                    TrangThaiText = MaTrangThai.TenTrangThai(s.TrangThai)
+                    TrangThaiText = s.TrangThai.TenHienThi()
                 });
         }
     }

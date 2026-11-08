@@ -1,11 +1,10 @@
 // FR-01 – FR-05 Quản lý tài khoản Admin/Giáo vụ
-// - Render bảng, phân trang (Skip/Take ở server): XMLHttpRequest
-// - Tạo (Create), khóa thay cho xóa (Delete), cập nhật, cấp lại mật khẩu: jQuery AJAX
-// - Tìm kiếm: fetch()
 $(function () {
     'use strict';
 
-    const token = $('input[name="__RequestVerificationToken"]').val();
+    const TK_HOAT_DONG = 1; // TrangThaiTaiKhoan.HoatDong
+    const VAI_TRO_CAN_BO = 'CanBo';
+
     const form = document.getElementById('formLoc');
     const tbody = document.getElementById('tkBody');
     const status = document.getElementById('tkStatus');
@@ -14,39 +13,10 @@ $(function () {
     const modalMatKhau = new bootstrap.Modal(document.getElementById('modalMatKhau'));
     const modalTrangThai = new bootstrap.Modal(document.getElementById('modalTrangThai'));
 
-    const TEN_VAI_TRO = { Admin: 'Admin', GiaoVu: 'Giáo vụ' };
+    const TEN_VAI_TRO = { Admin: 'Quản trị viên', CanBo: 'Giáo vụ' };
     let danhSach = [];   // các tài khoản của trang đang hiển thị
     let currentPage = 1;
-
-    // ===================== 1. Render bảng bằng XMLHttpRequest =====================
-
-    function xhrGetJson(url, onSuccess, onError) {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.setRequestHeader('Accept', 'application/json');
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return;
-
-            if (xhr.status === 200) {
-                let json;
-                try {
-                    json = JSON.parse(xhr.responseText);
-                } catch (e) {
-                    onError('Phản hồi không đúng định dạng JSON.');
-                    return;
-                }
-                onSuccess(json);
-            } else if (xhr.status === 401 || xhr.status === 403) {
-                onError('Chỉ Admin được quản lý tài khoản.');
-            } else {
-                onError('Lỗi máy chủ (HTTP ' + xhr.status + ').');
-            }
-        };
-        xhr.onerror = function () { onError('Không kết nối được máy chủ.'); };
-        xhr.send();
-    }
+    let requestSeq = 0;  // chỉ hiển thị phản hồi của request mới nhất
 
     function cell(text, className) {
         const td = document.createElement('td');
@@ -72,9 +42,10 @@ $(function () {
     function taoDong(tk) {
         const tr = document.createElement('tr');
         tr.dataset.id = tk.id;
+        const hoatDong = tk.trangThai === TK_HOAT_DONG;
 
         const badge = document.createElement('span');
-        badge.className = 'badge ' + (tk.trangThai === 1 ? 'bg-success' : 'bg-secondary');
+        badge.className = 'badge ' + (hoatDong ? 'bg-success' : 'bg-secondary');
         badge.textContent = tk.trangThaiText;
         const tdTrangThai = document.createElement('td');
         tdTrangThai.appendChild(badge);
@@ -84,7 +55,7 @@ $(function () {
         tdThaoTac.append(
             nut('Sửa', 'bi-pencil', 'btn-outline-primary me-1', 'sua', tk.id),
             nut('Cấp lại mật khẩu', 'bi-key', 'btn-outline-warning me-1', 'matkhau', tk.id),
-            tk.trangThai === 1
+            hoatDong
                 ? nut('Khóa tài khoản', 'bi-lock', 'btn-outline-danger', 'khoa', tk.id)
                 : nut('Mở khóa tài khoản', 'bi-unlock', 'btn-outline-success', 'mokhoa', tk.id)
         );
@@ -113,12 +84,6 @@ $(function () {
         items.forEach(function (tk) { tbody.appendChild(taoDong(tk)); });
     }
 
-    // ===================== 3. Phân trang: mỗi trang một request, server dùng Skip/Take =====================
-
-    // Số thứ tự request: chỉ hiển thị phản hồi của request mới nhất (XHR hoặc fetch)
-    let requestSeq = 0;
-    let fetchController = null;
-
     function buildUrl(page) {
         const params = new URLSearchParams(new FormData(form)); // gồm cả keyword
         for (const [k, v] of Array.from(params.entries())) {
@@ -129,80 +94,45 @@ $(function () {
         return '/Users/List?' + params.toString();
     }
 
-    // Dùng chung cho cả XHR và fetch: JSON -> DOM
-    function hienThiTrang(res) {
-        // Server kẹp page về trang cuối nếu trang yêu cầu không còn (VD: sau khi lọc)
-        currentPage = res.pageIndex;
-        danhSach = res.items;
-        renderTable(res.items);
-        renderPhanTrang(document.getElementById('tkPaging'), res.pageIndex, res.totalPages, loadDanhSach);
-        status.textContent = 'Tổng: ' + res.totalItems + ' tài khoản' +
-            (res.totalPages > 1 ? ' — trang ' + res.pageIndex + '/' + res.totalPages : '');
-    }
-
     // page bỏ trống: tải lại trang hiện tại (sau khi tạo/khóa tài khoản)
     function loadDanhSach(page) {
         currentPage = page || currentPage;
-        if (fetchController) fetchController.abort();
         const seq = ++requestSeq;
 
-        status.textContent = 'Đang tải trang ' + currentPage + '...';
-        xhrGetJson(buildUrl(currentPage), function (res) {
-            if (seq === requestSeq) hienThiTrang(res);
-        }, function (msg) {
-            if (seq === requestSeq) status.textContent = msg;
+        status.textContent = 'Đang tải...';
+        App.get(buildUrl(currentPage)).then(function (res) {
+            if (seq !== requestSeq) return;
+            const d = res.data;
+            // Server kẹp page về trang cuối nếu trang yêu cầu không còn (VD: sau khi lọc)
+            currentPage = d.page;
+            danhSach = d.items;
+            renderTable(d.items);
+            App.renderPaging(document.getElementById('tkPaging'), d.page, d.totalPages, loadDanhSach);
+            status.textContent = 'Tổng: ' + d.totalItems + ' tài khoản' +
+                (d.totalPages > 1 ? ' — trang ' + d.page + '/' + d.totalPages : '');
+        }).catch(function (err) {
+            if (seq === requestSeq) status.textContent = err.message;
         });
-    }
-
-    // ===================== 4. Tìm kiếm: fetch() gọi API JSON =====================
-
-    async function timKiem() {
-        // Hủy request tìm kiếm cũ đang chạy để kết quả gõ trước không ghi đè kết quả gõ sau
-        if (fetchController) fetchController.abort();
-        fetchController = new AbortController();
-        const seq = ++requestSeq;
-
-        status.textContent = 'Đang tìm...';
-        try {
-            const res = await fetch(buildUrl(1), {
-                headers: { 'Accept': 'application/json' },
-                signal: fetchController.signal
-            });
-            // fetch() không reject với HTTP 4xx/5xx - phải tự kiểm tra
-            if (!res.ok) {
-                if (seq === requestSeq) {
-                    status.textContent = res.status === 401 || res.status === 403
-                        ? 'Chỉ Admin được quản lý tài khoản.'
-                        : 'Lỗi máy chủ (HTTP ' + res.status + ').';
-                }
-                return;
-            }
-            const data = await res.json();
-            if (seq === requestSeq) hienThiTrang(data);
-        } catch (e) {
-            if (e.name !== 'AbortError' && seq === requestSeq) status.textContent = 'Không kết nối được máy chủ.';
-        }
     }
 
     // Debounce 300 ms: chỉ gọi API khi người dùng ngừng gõ
     let debounceTimer = null;
     document.getElementById('locKeyword').addEventListener('input', function () {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(timKiem, 300);
+        debounceTimer = setTimeout(function () { loadDanhSach(1); }, 300);
     });
 
     function loadKhoa() {
-        xhrGetJson('/Catalog/Lookup?type=khoa', function (res) {
-            const khoas = res.data;
+        App.get('/Catalog/Lookup?type=khoa').then(function (res) {
             [document.getElementById('locKhoa'), document.getElementById('tkKhoa')].forEach(function (select) {
-                khoas.forEach(function (k) {
+                res.data.forEach(function (k) {
                     const opt = document.createElement('option');
                     opt.value = k.ma;
                     opt.textContent = k.ten + ' (' + k.ma + ')';
                     select.appendChild(opt);
                 });
             });
-        }, function (msg) { status.textContent = msg; });
+        }).catch(function (err) { status.textContent = err.message; });
     }
 
     // Thay một dòng sau khi cập nhật, không tải lại cả bảng
@@ -213,29 +143,8 @@ $(function () {
         if (tr) tr.replaceWith(taoDong(tk));
     }
 
-    // ===================== 2. jQuery AJAX =====================
-
-    function postJson(url, payload) {
-        return $.ajax({
-            url: url,
-            type: 'POST',
-            contentType: 'application/json; charset=utf-8',
-            data: JSON.stringify(payload),
-            dataType: 'json',
-            headers: { 'RequestVerificationToken': token }
-        });
-    }
-
-    function thongBao(message, loai) {
-        $('#tkMessage').removeClass('d-none alert-success alert-danger').addClass('alert-' + loai).text(message);
-    }
-
-    function loiModal($modal, xhr) {
-        const res = xhr.responseJSON || {};
-        let message = res.message || 'Thao tác thất bại.';
-        if (xhr.status === 403) message = 'Chỉ Admin được thực hiện thao tác này.';
-        if (res.errors && res.errors.length) message = res.errors.join(' ');
-        $modal.find('.loi-modal').removeClass('d-none').text(message);
+    function loiModal($modal, err) {
+        $modal.find('.loi-modal').removeClass('d-none').text(App.errorText(err));
     }
 
     function moModal($modal) {
@@ -243,9 +152,9 @@ $(function () {
     }
 
     function capNhatOKhoa() {
-        const laGiaoVu = $('#tkVaiTro').val() === 'GiaoVu';
-        $('#tkKhoa').prop('disabled', !laGiaoVu);
-        if (!laGiaoVu) $('#tkKhoa').val('');
+        const laCanBo = $('#tkVaiTro').val() === VAI_TRO_CAN_BO;
+        $('#tkKhoa').prop('disabled', !laCanBo);
+        if (!laCanBo) $('#tkKhoa').val('');
     }
 
     // Mở modal tạo mới
@@ -307,7 +216,7 @@ $(function () {
         }
     });
 
-    // CREATE (FR-02) / UPDATE (FR-03)
+    // Tạo (FR-02) / cập nhật (FR-03)
     $('#formTaiKhoan').on('submit', function (e) {
         e.preventDefault();
         const $m = $('#modalTaiKhoan');
@@ -315,13 +224,13 @@ $(function () {
         const $btn = $(this).find('button[type="submit"]').prop('disabled', true);
 
         const request = id
-            ? postJson('/Users/Edit', {
+            ? App.post('/Users/Edit', {
                 id: id,
                 hoTen: $('#tkHoTen').val().trim(),
                 vaiTro: $('#tkVaiTro').val(),
                 maKhoaPhuTrach: $('#tkKhoa').val() || null
             })
-            : postJson('/Users/Create', {
+            : App.post('/Users/Create', {
                 userName: $('#tkUserName').val().trim(),
                 hoTen: $('#tkHoTen').val().trim(),
                 vaiTro: $('#tkVaiTro').val(),
@@ -330,19 +239,19 @@ $(function () {
                 xacNhanMatKhau: $('#tkXacNhan').val()
             });
 
-        request.done(function (res) {
+        request.then(function (res) {
             modalTaiKhoan.hide();
-            thongBao(res.message, 'success');
+            App.toast(res.message);
             if (id) {
                 capNhatDong(res.data);
             } else {
                 // Tài khoản mới có thể nằm ở trang khác (sắp theo tên đăng nhập) - tải lại trang hiện tại
                 loadDanhSach();
             }
-        }).fail(function (xhr) {
+        }).catch(function (err) {
             // Giữ nguyên dữ liệu trong biểu mẫu để người dùng sửa
-            loiModal($m, xhr);
-        }).always(function () {
+            loiModal($m, err);
+        }).finally(function () {
             $btn.prop('disabled', false);
         });
     });
@@ -352,42 +261,40 @@ $(function () {
         e.preventDefault();
         const $btn = $(this).find('button[type="submit"]').prop('disabled', true);
 
-        postJson('/Users/ResetPassword', {
+        App.post('/Users/ResetPassword', {
             id: $('#mkId').val(),
             matKhauMoi: $('#mkMoi').val(),
             xacNhanMatKhau: $('#mkXacNhan').val()
-        }).done(function (res) {
+        }).then(function (res) {
             modalMatKhau.hide();
-            thongBao(res.message + ' (' + $('#mkUserName').text() + ')', 'success');
-        }).fail(function (xhr) {
-            loiModal($('#modalMatKhau'), xhr);
-        }).always(function () {
+            App.toast(res.message);
+        }).catch(function (err) {
+            loiModal($('#modalMatKhau'), err);
+        }).finally(function () {
             $btn.prop('disabled', false);
         });
     });
 
-    // "DELETE" = khóa tài khoản; mở khóa (FR-05)
+    // Khóa/mở khóa (FR-05)
     $('#formTrangThai').on('submit', function (e) {
         e.preventDefault();
         const $btn = $('#ttSubmit').prop('disabled', true);
 
-        postJson('/Users/SetLock', {
+        App.post('/Users/SetLock', {
             id: $('#ttId').val(),
             khoa: $('#ttKhoa').val() === '1',
             lyDo: $('#ttLyDo').val().trim()
-        }).done(function (res) {
+        }).then(function (res) {
             modalTrangThai.hide();
-            thongBao(res.message, 'success');
+            App.toast(res.message);
             // Đang lọc theo trạng thái thì dòng không còn khớp bộ lọc - tải lại; ngược lại chỉ thay dòng
             if ($('#locTrangThai').val()) loadDanhSach(); else capNhatDong(res.data);
-        }).fail(function (xhr) {
-            loiModal($('#modalTrangThai'), xhr);
-        }).always(function () {
+        }).catch(function (err) {
+            loiModal($('#modalTrangThai'), err);
+        }).finally(function () {
             $btn.prop('disabled', false);
         });
     });
-
-    // ===================== Bộ lọc =====================
 
     // Đổi tiêu chí lọc hoặc số dòng/trang thì quay về trang 1
     $('#locVaiTro, #locKhoa, #locTrangThai, #locPageSize').on('change', function () { loadDanhSach(1); });

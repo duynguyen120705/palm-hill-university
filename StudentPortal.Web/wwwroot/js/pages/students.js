@@ -1,4 +1,4 @@
-// FR-28 Danh sách sinh viên cần xuất - tìm kiếm và phân trang bằng fetch(), render DOM từ JSON
+// FR-21, FR-22 Danh sách, tìm kiếm sinh viên; FR-28 Xuất danh sách
 (function () {
     'use strict';
 
@@ -12,7 +12,7 @@
     const total = document.getElementById('dsTotal');
 
     let allLops = [];
-    let controller = null;   // AbortController của request đang chạy
+    let requestSeq = 0;      // chỉ hiển thị phản hồi của request mới nhất
     let debounceTimer = null;
 
     function cell(text, className) {
@@ -77,40 +77,29 @@
         });
     }
 
-    async function loadPage(page) {
-        // Hủy request cũ để kết quả gõ trước không ghi đè kết quả gõ sau
-        if (controller) controller.abort();
-        controller = new AbortController();
-
+    function loadPage(page) {
+        const seq = ++requestSeq;
         const params = filterParams();
         params.set('page', page || 1);
         params.set('pageSize', document.getElementById('selPageSize').value);
 
         status.textContent = 'Đang tải...';
-        try {
-            const res = await fetch('/Students/Search?' + params.toString(), {
-                headers: { 'Accept': 'application/json' },
-                signal: controller.signal
-            });
-            if (!res.ok) {
-                status.textContent = res.status === 403 ? 'Bạn không có quyền xem danh sách.' : 'Không tải được danh sách.';
-                return;
-            }
-
-            const data = await res.json();
-            renderRows(data.items);
-            renderPhanTrang(document.getElementById('dsPaging'), data.pageIndex, data.totalPages, loadPage);
-            total.textContent = 'Tổng: ' + data.totalItems + ' sinh viên';
-            status.textContent = data.totalPages ? 'Trang ' + data.pageIndex + '/' + data.totalPages : '';
-        } catch (e) {
-            if (e.name !== 'AbortError') status.textContent = 'Không kết nối được máy chủ.';
-        }
+        App.get('/Students/Search?' + params.toString()).then(function (res) {
+            if (seq !== requestSeq) return;
+            const d = res.data;
+            renderRows(d.items);
+            App.renderPaging(document.getElementById('dsPaging'), d.page, d.totalPages, loadPage);
+            total.textContent = 'Tổng: ' + d.totalItems + ' sinh viên';
+            status.textContent = d.totalPages ? 'Trang ' + d.page + '/' + d.totalPages : '';
+        }).catch(function (err) {
+            if (seq === requestSeq) status.textContent = err.message;
+        });
     }
 
     function xuat(format) {
         const params = filterParams();
         params.set('format', format);
-        taiFileXuat('/Students/Export?' + params.toString(), function (msg) {
+        App.download('/Students/Export?' + params.toString(), function (msg) {
             status.textContent = msg;
         });
     }
@@ -118,18 +107,18 @@
     // Tìm kiếm khi gõ, debounce 300 ms
     txtKeyword.addEventListener('input', function () {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function () { void loadPage(1); }, 300);
+        debounceTimer = setTimeout(function () { loadPage(1); }, 300);
     });
-    selKhoa.addEventListener('change', function () { refreshLopOptions(); void loadPage(1); });
-    selKhoaHoc.addEventListener('change', function () { refreshLopOptions(); void loadPage(1); });
+    selKhoa.addEventListener('change', function () { refreshLopOptions(); loadPage(1); });
+    selKhoaHoc.addEventListener('change', function () { refreshLopOptions(); loadPage(1); });
     ['selLop', 'selTrangThai', 'selPageSize'].forEach(function (id) {
-        document.getElementById(id).addEventListener('change', function () { void loadPage(1); });
+        document.getElementById(id).addEventListener('change', function () { loadPage(1); });
     });
-    form.addEventListener('submit', function (e) { e.preventDefault(); void loadPage(1); });
+    form.addEventListener('submit', function (e) { e.preventDefault(); loadPage(1); });
     document.getElementById('btnXuatExcel').addEventListener('click', function () { xuat('excel'); });
     document.getElementById('btnXuatPdf').addEventListener('click', function () { xuat('pdf'); });
 
-    taiDanhMucBoLoc()
+    App.loadFilters()
         .then(function (data) {
             fillSelect(selKhoa, data.khoas);
             fillSelect(selKhoaHoc, data.khoaHocs);
@@ -138,5 +127,5 @@
         })
         .catch(function () { status.textContent = 'Không tải được bộ lọc.'; });
 
-    void loadPage(1);
+    loadPage(1);
 })();

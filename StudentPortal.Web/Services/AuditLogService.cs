@@ -24,7 +24,8 @@ namespace StudentPortal.Services
                 Username = _httpContextAccessor.HttpContext?.User.Identity?.Name ?? "unknown",
                 HanhDong = hanhDong,
                 DoiTuongLoai = doiTuongLoai,
-                DoiTuongMa = TextHelper.CatChuoi(doiTuongMa, 100)
+                DoiTuongMa = TextHelper.CatChuoi(doiTuongMa, 256),
+                ChiTiet = chiTiet == null ? null : TextHelper.CatChuoi(chiTiet, 500)
             });
             return Task.CompletedTask;
         }

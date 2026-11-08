@@ -1,42 +1,27 @@
 using Microsoft.AspNetCore.Identity;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace StudentPortal.Models.Entities
 {
     public class ApplicationUser : IdentityUser
     {
-        [StringLength(100, ErrorMessage = "Họ tên tối đa 100 ký tự")]
-        [Display(Name = "Họ và Tên")]
+        // Bắt buộc với Admin/CanBo; null với SinhVien (lấy từ hồ sơ)
         public string? HoTen { get; set; }
 
-        [StringLength(15)]
-        [Display(Name = "Mã Sinh Viên")]
+        // Bắt buộc và bằng UserName với SinhVien
         public string? MaSV { get; set; }
 
-        [StringLength(20)]
-        [Display(Name = "Mã Khoa Phụ Trách")]
+        // Bắt buộc với CanBo; null với Admin/SinhVien
         public string? MaKhoaPhuTrach { get; set; }
 
-        [Display(Name = "Trạng Thái Tài Khoản")]
-        public int TrangThaiTaiKhoan { get; set; } = 1;
+        public TrangThaiTaiKhoan TrangThaiTaiKhoan { get; set; } = TrangThaiTaiKhoan.HoatDong;
+        public string? LyDoKhoa { get; set; }
 
-        [NotMapped]
-        public TrangThaiTaiKhoan TrangThaiTaiKhoanEnum
-        {
-            get => (TrangThaiTaiKhoan)TrangThaiTaiKhoan;
-            set => TrangThaiTaiKhoan = (int)value;
-        }
+        // Null khi chưa từng đăng nhập; dùng cho điều kiện xóa của Giáo vụ (FR-18)
+        public DateTime? LanDangNhapCuoi { get; set; }
 
-        [Display(Name = "Lần Đăng Nhập Đầu Tiên")]
-        public DateTime? LanDangNhapDauTien { get; set; }
+        public DateTime NgayTao { get; set; } = DateTime.UtcNow;
 
-        // Navigation Properties
-        [ForeignKey(nameof(MaSV))]
         public virtual SinhVien? SinhVien { get; set; }
-
-        [ForeignKey(nameof(MaKhoaPhuTrach))]
         public virtual Khoa? KhoaPhuTrach { get; set; }
     }
 }
-

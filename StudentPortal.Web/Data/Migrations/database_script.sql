@@ -20,30 +20,34 @@ CREATE TABLE [AspNetRoles] (
 );
 GO
 
-CREATE TABLE [KHOA] (
-    [MaKhoa] varchar(20) NOT NULL,
+CREATE TABLE [Khoa] (
+    [MaKhoa] varchar(15) NOT NULL,
     [TenKhoa] nvarchar(100) NOT NULL,
     [DaXoa] bit NOT NULL DEFAULT CAST(0 AS bit),
-    CONSTRAINT [PK_KHOA] PRIMARY KEY ([MaKhoa])
+    [NgayTao] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
+    CONSTRAINT [PK_Khoa] PRIMARY KEY ([MaKhoa])
 );
 GO
 
-CREATE TABLE [KHOA_HOC] (
-    [MaKhoaHoc] varchar(20) NOT NULL,
+CREATE TABLE [KhoaHoc] (
+    [MaKhoaHoc] varchar(15) NOT NULL,
     [NamNhapHoc] int NOT NULL,
     [DaXoa] bit NOT NULL DEFAULT CAST(0 AS bit),
-    CONSTRAINT [PK_KHOA_HOC] PRIMARY KEY ([MaKhoaHoc])
+    [NgayTao] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
+    CONSTRAINT [PK_KhoaHoc] PRIMARY KEY ([MaKhoaHoc]),
+    CONSTRAINT [CK_KhoaHoc_NamNhapHoc] CHECK ([NamNhapHoc] BETWEEN 2000 AND YEAR(GETDATE()) + 1)
 );
 GO
 
-CREATE TABLE [NHAT_KY_THAO_TAC] (
+CREATE TABLE [NhatKyThaoTac] (
     [Id] bigint NOT NULL IDENTITY,
     [ThoiDiem] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
     [Username] nvarchar(256) NOT NULL,
-    [HanhDong] nvarchar(100) NOT NULL,
-    [DoiTuongLoai] nvarchar(100) NOT NULL,
-    [DoiTuongMa] nvarchar(100) NOT NULL,
-    CONSTRAINT [PK_NHAT_KY_THAO_TAC] PRIMARY KEY ([Id])
+    [HanhDong] varchar(50) NOT NULL,
+    [DoiTuongLoai] varchar(30) NOT NULL,
+    [DoiTuongMa] nvarchar(256) NOT NULL,
+    [ChiTiet] nvarchar(500) NULL,
+    CONSTRAINT [PK_NhatKyThaoTac] PRIMARY KEY ([Id])
 );
 GO
 
@@ -57,37 +61,40 @@ CREATE TABLE [AspNetRoleClaims] (
 );
 GO
 
-CREATE TABLE [LOP] (
-    [MaLop] varchar(20) NOT NULL,
-    [TenLop] nvarchar(100) NOT NULL,
-    [MaKhoa] varchar(20) NOT NULL,
-    [MaKhoaHoc] varchar(20) NOT NULL,
+CREATE TABLE [Lop] (
+    [MaLop] varchar(15) NOT NULL,
+    [TenLop] nvarchar(50) NOT NULL,
+    [MaKhoa] varchar(15) NOT NULL,
+    [MaKhoaHoc] varchar(15) NOT NULL,
     [DaXoa] bit NOT NULL DEFAULT CAST(0 AS bit),
-    CONSTRAINT [PK_LOP] PRIMARY KEY ([MaLop]),
-    CONSTRAINT [FK_LOP_KHOA_HOC_MaKhoaHoc] FOREIGN KEY ([MaKhoaHoc]) REFERENCES [KHOA_HOC] ([MaKhoaHoc]) ON DELETE NO ACTION,
-    CONSTRAINT [FK_LOP_KHOA_MaKhoa] FOREIGN KEY ([MaKhoa]) REFERENCES [KHOA] ([MaKhoa]) ON DELETE NO ACTION
+    [NgayTao] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
+    CONSTRAINT [PK_Lop] PRIMARY KEY ([MaLop]),
+    CONSTRAINT [FK_Lop_KhoaHoc_MaKhoaHoc] FOREIGN KEY ([MaKhoaHoc]) REFERENCES [KhoaHoc] ([MaKhoaHoc]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_Lop_Khoa_MaKhoa] FOREIGN KEY ([MaKhoa]) REFERENCES [Khoa] ([MaKhoa]) ON DELETE NO ACTION
 );
 GO
 
-CREATE TABLE [SINH_VIEN] (
+CREATE TABLE [SinhVien] (
     [MaSV] varchar(15) NOT NULL,
     [HoTen] nvarchar(100) NOT NULL,
+    [HoTenKhongDau] varchar(100) NOT NULL,
     [NgaySinh] date NOT NULL,
-    [GioiTinh] int NOT NULL,
-    [MaLop] varchar(20) NOT NULL,
+    [GioiTinh] tinyint NOT NULL,
+    [MaLop] varchar(15) NOT NULL,
     [SDT] varchar(10) NULL,
-    [Email] nvarchar(100) NULL,
-    [DiaChi] nvarchar(250) NULL,
-    [TrangThai] int NOT NULL,
+    [Email] varchar(100) NULL,
+    [DiaChi] nvarchar(255) NULL,
+    [TrangThai] tinyint NOT NULL,
+    [DaCoBienDong] bit NOT NULL DEFAULT CAST(0 AS bit),
     [DaXoa] bit NOT NULL DEFAULT CAST(0 AS bit),
     [NgayXoa] datetime2 NULL,
     [NguoiXoa] nvarchar(256) NULL,
     [LyDoXoa] nvarchar(500) NULL,
     [NgayTao] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
-    [NgayCapNhat] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
-    [RowVersion] rowversion NULL,
-    CONSTRAINT [PK_SINH_VIEN] PRIMARY KEY ([MaSV]),
-    CONSTRAINT [FK_SINH_VIEN_LOP_MaLop] FOREIGN KEY ([MaLop]) REFERENCES [LOP] ([MaLop]) ON DELETE NO ACTION
+    [NgayCapNhat] datetime2 NULL,
+    CONSTRAINT [PK_SinhVien] PRIMARY KEY ([MaSV]),
+    CONSTRAINT [CK_SinhVien_LyDoXoa] CHECK ([DaXoa] = 0 OR [LyDoXoa] IS NOT NULL),
+    CONSTRAINT [FK_SinhVien_Lop_MaLop] FOREIGN KEY ([MaLop]) REFERENCES [Lop] ([MaLop]) ON DELETE NO ACTION
 );
 GO
 
@@ -95,9 +102,11 @@ CREATE TABLE [AspNetUsers] (
     [Id] nvarchar(450) NOT NULL,
     [HoTen] nvarchar(100) NULL,
     [MaSV] varchar(15) NULL,
-    [MaKhoaPhuTrach] varchar(20) NULL,
-    [TrangThaiTaiKhoan] int NOT NULL,
-    [LanDangNhapDauTien] datetime2 NULL,
+    [MaKhoaPhuTrach] varchar(15) NULL,
+    [TrangThaiTaiKhoan] tinyint NOT NULL,
+    [LyDoKhoa] nvarchar(255) NULL,
+    [LanDangNhapCuoi] datetime2 NULL,
+    [NgayTao] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
     [UserName] nvarchar(256) NULL,
     [NormalizedUserName] nvarchar(256) NULL,
     [Email] nvarchar(256) NULL,
@@ -113,22 +122,8 @@ CREATE TABLE [AspNetUsers] (
     [LockoutEnabled] bit NOT NULL,
     [AccessFailedCount] int NOT NULL,
     CONSTRAINT [PK_AspNetUsers] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_AspNetUsers_KHOA_MaKhoaPhuTrach] FOREIGN KEY ([MaKhoaPhuTrach]) REFERENCES [KHOA] ([MaKhoa]) ON DELETE NO ACTION,
-    CONSTRAINT [FK_AspNetUsers_SINH_VIEN_MaSV] FOREIGN KEY ([MaSV]) REFERENCES [SINH_VIEN] ([MaSV]) ON DELETE SET NULL
-);
-GO
-
-CREATE TABLE [LICH_SU_HO_SO_SINH_VIEN] (
-    [Id] bigint NOT NULL IDENTITY,
-    [MaSV] varchar(15) NOT NULL,
-    [Loai] int NOT NULL,
-    [GiaTriCu] nvarchar(500) NULL,
-    [GiaTriMoi] nvarchar(500) NULL,
-    [LyDo] nvarchar(500) NULL,
-    [NguoiThucHien] nvarchar(256) NOT NULL,
-    [ThoiDiem] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
-    CONSTRAINT [PK_LICH_SU_HO_SO_SINH_VIEN] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_LICH_SU_HO_SO_SINH_VIEN_SINH_VIEN_MaSV] FOREIGN KEY ([MaSV]) REFERENCES [SINH_VIEN] ([MaSV]) ON DELETE CASCADE
+    CONSTRAINT [FK_AspNetUsers_Khoa_MaKhoaPhuTrach] FOREIGN KEY ([MaKhoaPhuTrach]) REFERENCES [Khoa] ([MaKhoa]) ON DELETE NO ACTION,
+    CONSTRAINT [FK_AspNetUsers_SinhVien_MaSV] FOREIGN KEY ([MaSV]) REFERENCES [SinhVien] ([MaSV]) ON DELETE NO ACTION
 );
 GO
 
@@ -198,41 +193,38 @@ GO
 CREATE UNIQUE INDEX [UserNameIndex] ON [AspNetUsers] ([NormalizedUserName]) WHERE [NormalizedUserName] IS NOT NULL;
 GO
 
-CREATE INDEX [IX_LICH_SU_HO_SO_SINH_VIEN_MaSV] ON [LICH_SU_HO_SO_SINH_VIEN] ([MaSV]);
+CREATE INDEX [IX_Lop_MaKhoa] ON [Lop] ([MaKhoa]);
 GO
 
-CREATE INDEX [IX_LICH_SU_HO_SO_SINH_VIEN_ThoiDiem] ON [LICH_SU_HO_SO_SINH_VIEN] ([ThoiDiem]);
+CREATE UNIQUE INDEX [IX_Lop_MaKhoa_MaKhoaHoc_TenLop] ON [Lop] ([MaKhoa], [MaKhoaHoc], [TenLop]);
 GO
 
-CREATE UNIQUE INDEX [IX_LOP_MaKhoa_MaKhoaHoc_TenLop] ON [LOP] ([MaKhoa], [MaKhoaHoc], [TenLop]);
+CREATE INDEX [IX_Lop_MaKhoaHoc] ON [Lop] ([MaKhoaHoc]);
 GO
 
-CREATE INDEX [IX_LOP_MaKhoaHoc] ON [LOP] ([MaKhoaHoc]);
+CREATE INDEX [IX_NhatKyThaoTac_DoiTuongMa] ON [NhatKyThaoTac] ([DoiTuongMa]);
 GO
 
-CREATE INDEX [IX_NHAT_KY_THAO_TAC_DoiTuongLoai_DoiTuongMa] ON [NHAT_KY_THAO_TAC] ([DoiTuongLoai], [DoiTuongMa]);
+CREATE INDEX [IX_NhatKyThaoTac_ThoiDiem] ON [NhatKyThaoTac] ([ThoiDiem] DESC);
 GO
 
-CREATE INDEX [IX_NHAT_KY_THAO_TAC_ThoiDiem] ON [NHAT_KY_THAO_TAC] ([ThoiDiem]);
+CREATE INDEX [IX_NhatKyThaoTac_Username] ON [NhatKyThaoTac] ([Username]);
 GO
 
-CREATE INDEX [IX_NHAT_KY_THAO_TAC_Username] ON [NHAT_KY_THAO_TAC] ([Username]);
+CREATE INDEX [IX_SinhVien_DaXoa] ON [SinhVien] ([DaXoa]);
 GO
 
-CREATE UNIQUE INDEX [IX_SINH_VIEN_Email] ON [SINH_VIEN] ([Email]) WHERE [Email] IS NOT NULL;
+CREATE INDEX [IX_SinhVien_HoTenKhongDau] ON [SinhVien] ([HoTenKhongDau]);
 GO
 
-CREATE INDEX [IX_SINH_VIEN_HoTen] ON [SINH_VIEN] ([HoTen]);
+CREATE INDEX [IX_SinhVien_MaLop] ON [SinhVien] ([MaLop]);
 GO
 
-CREATE INDEX [IX_SINH_VIEN_MaLop] ON [SINH_VIEN] ([MaLop]);
-GO
-
-CREATE INDEX [IX_SINH_VIEN_TrangThai] ON [SINH_VIEN] ([TrangThai]);
+CREATE INDEX [IX_SinhVien_TrangThai] ON [SinhVien] ([TrangThai]);
 GO
 
 INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-VALUES (N'20261014132133_InitialCreate', N'8.0.10');
+VALUES (N'20261108103119_InitialCreate', N'8.0.10');
 GO
 
 COMMIT;

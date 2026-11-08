@@ -2,12 +2,10 @@
     ViewData["Title"] = "Quản lý tài khoản";
 }
 
-@Html.AntiForgeryToken()
 
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
     <h4 class="mb-0"><i class="bi bi-people me-2"></i>Quản lý tài khoản Admin/Giáo vụ</h4>
     <div class="d-flex gap-2 align-items-center">
-        <span class="badge bg-light text-primary border"><i class="bi bi-code-slash"></i> XMLHttpRequest + jQuery AJAX</span>
         <button type="button" id="btnTaoMoi" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i>Tạo tài khoản</button>
     </div>
 </div>
@@ -16,7 +14,7 @@
     <div class="card-body">
         <form id="formLoc" class="row g-2 align-items-end">
             <div class="col-12">
-                <label for="locKeyword" class="form-label">Tìm kiếm <span class="badge bg-light text-primary border">fetch()</span></label>
+                <label for="locKeyword" class="form-label">Tìm kiếm</label>
                 <input type="search" id="locKeyword" name="keyword" class="form-control" maxlength="100" autocomplete="off"
                        placeholder="Nhập tên đăng nhập hoặc họ tên (không cần dấu, VD: nhung)" />
             </div>
@@ -24,7 +22,7 @@
                 <label for="locVaiTro" class="form-label">Vai trò</label>
                 <select id="locVaiTro" name="vaiTro" class="form-select">
                     <option value="">Tất cả</option>
-                    <option value="Admin">Admin</option>
+                    <option value="@Roles.Admin">@Roles.TenHienThi(Roles.Admin)</option>
                     <option value="@Roles.CanBo">Giáo vụ</option>
                 </select>
             </div>
@@ -37,15 +35,15 @@
                 <select id="locTrangThai" name="trangThai" class="form-select">
                     <option value="">Tất cả</option>
                     <option value="1">Hoạt động</option>
-                    <option value="0">Bị khóa</option>
+                    <option value="2">Bị khóa</option>
                 </select>
             </div>
             <div class="col-6 col-md-2">
                 <label for="locPageSize" class="form-label">Số dòng/trang</label>
                 <select id="locPageSize" class="form-select">
-                    <option value="5">5</option>
-                    <option value="10" selected>10</option>
-                    <option value="20">20</option>
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
                 </select>
             </div>
             <div class="col-12 col-md-2 d-grid">
@@ -102,7 +100,7 @@
                         <label for="tkVaiTro" class="form-label">Vai trò</label>
                         <select id="tkVaiTro" class="form-select">
                             <option value="@Roles.CanBo">Giáo vụ</option>
-                            <option value="Admin">Admin</option>
+                            <option value="@Roles.Admin">@Roles.TenHienThi(Roles.Admin)</option>
                         </select>
                     </div>
                     <div class="col-6">

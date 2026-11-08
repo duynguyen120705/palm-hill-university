@@ -27,16 +27,16 @@ namespace StudentPortal.Services.Interfaces
 
         // ===== Quản lý tài khoản Admin/Giáo vụ (FR-01, FR-03) =====
 
-        Task<PagedResultDto<TaiKhoanItemDto>> ListStaffAsync(TaiKhoanFilterDto filter);
+        Task<PagedResult<UserListItemDto>> ListStaffAsync(UserFilterVm filter);
 
         // Không tìm thấy hoặc không phải tài khoản Admin/Giáo vụ: HTTP 404
-        Task<TaiKhoanItemDto> GetStaffAsync(string id);
+        Task<UserListItemDto> GetStaffAsync(string id);
 
-        Task UpdateStaffAsync(TaiKhoanUpdateDto dto);
+        Task UpdateStaffAsync(StaffEditVm dto);
 
         // ===== Hồ sơ cá nhân của người đang đăng nhập (FR-11, FR-12) =====
 
-        Task<HoSoCaNhanDto> GetProfileAsync();
-        Task<HoSoSinhVienDto> UpdateContactAsync(CapNhatLienHeDto dto);
+        Task<ProfileVm> GetProfileAsync();
+        Task<StudentProfileVm> UpdateContactAsync(ContactEditVm dto);
     }
 }

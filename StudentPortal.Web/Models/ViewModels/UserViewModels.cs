@@ -1,22 +1,24 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using StudentPortal.Infrastructure.Validation;
+using StudentPortal.Models.Entities;
 
 namespace StudentPortal.Models.ViewModels
 {
     // Bộ lọc danh sách tài khoản Admin/Giáo vụ (FR-01)
-    public class TaiKhoanFilterDto
+    public class UserFilterVm
     {
         // Tìm theo tên đăng nhập hoặc họ tên, không phân biệt hoa thường và dấu
         [StringLength(100)]
         public string? Keyword { get; set; }
         public string? VaiTro { get; set; }
         public string? MaKhoa { get; set; }
-        public int? TrangThai { get; set; }
+        public TrangThaiTaiKhoan? TrangThai { get; set; }
         public int Page { get; set; } = 1;
-        public int PageSize { get; set; } = 10;
+        public int PageSize { get; set; } = 20;
     }
 
-    public class TaiKhoanItemDto
+    public class UserListItemDto
     {
         public string Id { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;
@@ -24,7 +26,7 @@ namespace StudentPortal.Models.ViewModels
         public string VaiTro { get; set; } = string.Empty;
         public string? MaKhoaPhuTrach { get; set; }
         public string? TenKhoa { get; set; }
-        public int TrangThai { get; set; }
+        public TrangThaiTaiKhoan TrangThai { get; set; }
         public string TrangThaiText { get; set; } = string.Empty;
     }
 
@@ -32,12 +34,12 @@ namespace StudentPortal.Models.ViewModels
     public class StaffCreateDto
     {
         [Required(ErrorMessage = "Họ tên không được để trống")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Họ tên từ 2 đến 100 ký tự")]
-        [RegularExpression(@"^[^\d]+$", ErrorMessage = "Họ tên không chứa chữ số")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = ValidationRules.HoTenMessage)]
+        [HoTen]
         public string HoTen { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Tên đăng nhập không được để trống")]
-        [RegularExpression(@"^[a-zA-Z0-9._]{3,50}$", ErrorMessage = "Tên đăng nhập 3–50 ký tự: chữ, số, dấu chấm, gạch dưới")]
+        [MaSo]
         public string UserName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Vui lòng chọn vai trò")]
@@ -46,8 +48,7 @@ namespace StudentPortal.Models.ViewModels
         public string? MaKhoaPhuTrach { get; set; }
 
         [Required(ErrorMessage = "Mật khẩu không được để trống")]
-        [StringLength(100, MinimumLength = 8, ErrorMessage = "Mật khẩu tối thiểu 8 ký tự")]
-        [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).+$", ErrorMessage = "Mật khẩu phải gồm cả chữ và số")]
+        [MatKhauManh]
         public string MatKhau { get; set; } = string.Empty;
 
         [Compare(nameof(MatKhau), ErrorMessage = "Xác nhận mật khẩu không khớp")]
@@ -55,14 +56,14 @@ namespace StudentPortal.Models.ViewModels
     }
 
     // FR-03 Cập nhật tài khoản Admin/Giáo vụ
-    public class TaiKhoanUpdateDto
+    public class StaffEditVm
     {
         [Required]
         public string Id { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Họ tên không được để trống")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Họ tên từ 2 đến 100 ký tự")]
-        [RegularExpression(@"^[^\d]+$", ErrorMessage = "Họ tên không chứa chữ số")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = ValidationRules.HoTenMessage)]
+        [HoTen]
         public string HoTen { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Vui lòng chọn vai trò")]
@@ -72,14 +73,13 @@ namespace StudentPortal.Models.ViewModels
     }
 
     // FR-04 Cấp lại mật khẩu tài khoản Admin/Giáo vụ
-    public class DatLaiMatKhauDto
+    public class ResetPasswordVm
     {
         [Required]
         public string Id { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Mật khẩu mới không được để trống")]
-        [StringLength(100, MinimumLength = 8, ErrorMessage = "Mật khẩu tối thiểu 8 ký tự")]
-        [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).+$", ErrorMessage = "Mật khẩu phải gồm cả chữ và số")]
+        [MatKhauManh]
         public string MatKhauMoi { get; set; } = string.Empty;
 
         [Compare(nameof(MatKhauMoi), ErrorMessage = "Xác nhận mật khẩu không khớp")]
@@ -87,7 +87,7 @@ namespace StudentPortal.Models.ViewModels
     }
 
     // FR-05 Khóa/mở khóa tài khoản Admin/Giáo vụ
-    public class DoiTrangThaiTaiKhoanDto
+    public class SetLockVm
     {
         [Required]
         public string Id { get; set; } = string.Empty;
@@ -97,7 +97,7 @@ namespace StudentPortal.Models.ViewModels
         public bool Khoa { get; set; }
 
         [Required(ErrorMessage = "Vui lòng nhập lý do")]
-        [StringLength(500, ErrorMessage = "Lý do tối đa 500 ký tự")]
+        [StringLength(255, ErrorMessage = "Lý do tối đa 255 ký tự")]
         public string LyDo { get; set; } = string.Empty;
     }
 }

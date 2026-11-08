@@ -38,14 +38,13 @@ namespace StudentPortal.Controllers
         public IActionResult Login(string? returnUrl = null)
         {
             if (User.Identity?.IsAuthenticated == true) return RedirectToLocal(returnUrl);
-            return View(new DangNhapDto { ReturnUrl = returnUrl });
+            return View(new LoginVm { ReturnUrl = returnUrl });
         }
 
         // POST: /Account/Login
         [HttpPost]
         [AllowAnonymous]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login(DangNhapDto dto)
+        public async Task<IActionResult> Login(LoginVm dto)
         {
             if (!ModelState.IsValid) return View(dto);
 
@@ -64,10 +63,10 @@ namespace StudentPortal.Controllers
             }
 
             var user = await _userManager.FindByNameAsync(dto.UserName.Trim());
-            if (user != null && user.LanDangNhapDauTien == null)
+            if (user != null)
             {
-                // FR-18 dựa vào mốc này để xét Giáo vụ được xóa mềm hồ sơ hay không
-                user.LanDangNhapDauTien = DateTime.UtcNow;
+                // Ghi thời điểm đăng nhập cuối; FR-18 dựa vào mốc này để xét Giáo vụ được xóa mềm hồ sơ hay không
+                user.LanDangNhapCuoi = DateTime.UtcNow;
                 await _userManager.UpdateAsync(user);
             }
 
@@ -81,7 +80,6 @@ namespace StudentPortal.Controllers
         // vẫn chuyển về trang đăng nhập: token sai thì về Login (không chạy action) thay vì trả lỗi 400
         [HttpPost]
         [AllowAnonymous]
-        [ValidateAntiForgeryToken]
         [VeLoginKhiTokenSai]
         public async Task<IActionResult> Logout()
         {
@@ -106,16 +104,14 @@ namespace StudentPortal.Controllers
             return View(await _accountService.GetProfileAsync());
         }
 
-        // POST: /Account/UpdateContact (jQuery AJAX, JSON) - chỉ sinh viên (FR-12)
+        // POST: /Account/UpdateContact (Ajax, JSON) - chỉ sinh viên (FR-12)
         [HttpPost]
         [Authorize(Roles = Roles.SinhVien)]
-        [ValidateAntiForgeryToken]
-        public Task<IActionResult> UpdateContact([FromBody] CapNhatLienHeDto dto) =>
-            XuLyAsync(async () =>
-            {
-                var data = await _accountService.UpdateContactAsync(dto);
-                return Ok(new { success = true, message = "Đã cập nhật thông tin liên hệ.", data });
-            });
+        public async Task<IActionResult> UpdateContact([FromBody] ContactEditVm dto)
+        {
+            var data = await _accountService.UpdateContactAsync(dto);
+            return Ok(ApiResponse.Ok(data, "Đã cập nhật thông tin liên hệ."));
+        }
 
         // GET: /Account/ChangePassword (FR-10)
         [HttpGet]
@@ -125,22 +121,21 @@ namespace StudentPortal.Controllers
             return View();
         }
 
-        // POST: /Account/ChangePassword (jQuery AJAX, JSON) - cả ba vai trò
+        // POST: /Account/ChangePassword (Ajax, JSON) - cả ba vai trò
         [HttpPost]
         [Authorize]
-        [ValidateAntiForgeryToken]
         [ActionName(nameof(ChangePassword))]
-        public Task<IActionResult> ChangePasswordPost([FromBody] DoiMatKhauDto dto) =>
-            XuLyAsync(async () =>
-            {
-                var userId = _userManager.GetUserId(User) ?? throw new NghiepVuException("Phiên đăng nhập không hợp lệ.", 401);
-                (await _accountService.ChangePasswordAsync(userId, dto.MatKhauHienTai, dto.MatKhauMoi)).ThrowIfFailed();
+        public async Task<IActionResult> ChangePasswordPost([FromBody] ChangePasswordVm dto)
+        {
+            var userId = _userManager.GetUserId(User)
+                ?? throw new NghiepVuException("Phiên đăng nhập không hợp lệ.", StatusCodes.Status401Unauthorized);
+            (await _accountService.ChangePasswordAsync(userId, dto.MatKhauHienTai, dto.MatKhauMoi)).ThrowIfFailed();
 
-                // SecurityStamp đã đổi: cấp lại cookie để phiên hiện tại tiếp tục hợp lệ (FR-10)
-                var user = await _userManager.GetUserAsync(User);
-                if (user != null) await _signInManager.RefreshSignInAsync(user);
-                return Ok(new { success = true, message = "Đã đổi mật khẩu." });
-            });
+            // SecurityStamp đã đổi: cấp lại cookie để phiên hiện tại tiếp tục hợp lệ (FR-10)
+            var user = await _userManager.GetUserAsync(User);
+            if (user != null) await _signInManager.RefreshSignInAsync(user);
+            return Ok(ApiResponse.Ok(message: "Đã đổi mật khẩu."));
+        }
 
         // Mở giao diện theo vai trò (FR-06 bước 4)
         private async Task<IActionResult> RedirectTheoVaiTroAsync(ApplicationUser? user)
@@ -158,34 +153,6 @@ namespace StudentPortal.Controllers
             !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
                 ? LocalRedirect(returnUrl)
                 : RedirectToAction("Index", "Home");
-
-        private async Task<IActionResult> XuLyAsync(Func<Task<IActionResult>> action)
-        {
-            if (!ModelState.IsValid)
-            {
-                // Lỗi đọc JSON (gồm gửi trường ngoài quyền sửa - JsonUnmappedMemberHandling.Disallow) nằm ở khóa "$..."
-                // hoặc làm thiếu "dto"; không trả chi tiết kỹ thuật cho client
-                if (ModelState.Keys.Any(k => k.StartsWith('$') || k == "dto"))
-                    return BadRequest(new { success = false, message = "Dữ liệu gửi lên không hợp lệ hoặc chứa trường không được phép sửa." });
-
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).Distinct().ToList();
-                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ.", errors });
-            }
-
-            try
-            {
-                return await action();
-            }
-            catch (NghiepVuException ex)
-            {
-                return StatusCode(ex.StatusCode, new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi xử lý tài khoản cá nhân");
-                return StatusCode(500, new { success = false, message = "Lỗi máy chủ." });
-            }
-        }
 
         // Thay kết quả lỗi anti-forgery (400) bằng chuyển hướng về trang đăng nhập
         private sealed class VeLoginKhiTokenSaiAttribute : Attribute, IAlwaysRunResultFilter

@@ -1,10 +1,9 @@
 using System.Globalization;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using StudentPortal.Data;
 using StudentPortal.Infrastructure;
+using StudentPortal.Infrastructure.Validation;
 using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
 using StudentPortal.Services.Interfaces;
@@ -20,12 +19,6 @@ namespace StudentPortal.Services
         };
 
         private const int SoDongToiDa = 2000;
-
-        // Giới hạn thời gian chạy Regex trên dữ liệu từ file nhập (chống ReDoS)
-        private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(200);
-
-        private const int DangHoc = MaTrangThai.DangHoc, BaoLuu = MaTrangThai.BaoLuu,
-            ThoiHoc = MaTrangThai.ThoiHoc, DaTotNghiep = MaTrangThai.DaTotNghiep;
 
         private readonly AppDbContext _context;
         private readonly IAccountService _account;
@@ -51,12 +44,12 @@ namespace StudentPortal.Services
             ws.Cell(2, 2).Value = "Nguyễn Văn A";
             ws.Cell(2, 3).Value = "15/08/2008";
             ws.Cell(2, 4).Value = "Nam";
-            ws.Cell(2, 5).Value = "CNTT-K26A";
+            ws.Cell(2, 5).Value = "CNTT25A";
             ws.Cell(2, 6).Value = "0912345678";
             ws.Cell(2, 7).Value = "nguyenvana@example.com";
             ws.Cell(2, 8).Value = "Hà Nội";
             ws.Cell(2, 9).Value = "Đang học";
-            ws.Cell(2, 10).Value = "Student@123";
+            ws.Cell(2, 10).Value = "MatKhau123";
 
             ws.Row(1).Style.Font.Bold = true;
             ws.Columns().AdjustToContents();
@@ -66,10 +59,10 @@ namespace StudentPortal.Services
             return ms.ToArray();
         }
 
-        public async Task<KetQuaNhapDto> ImportAsync(Stream file, string tenFile)
+        public async Task<ImportResultDto> ImportAsync(Stream file, string tenFile)
         {
             var scope = _scope.GetCurrent();
-            var ketQua = new KetQuaNhapDto { TenFile = tenFile };
+            var ketQua = new ImportResultDto { TenFile = tenFile };
 
             // File chỉ đọc trong bộ nhớ, không lưu xuống đĩa (NFR-08)
             using var wb = new XLWorkbook(file);
@@ -115,7 +108,7 @@ namespace StudentPortal.Services
                 }
                 catch (DongLoiException ex)
                 {
-                    ketQua.Loi.Add(new DongLoiDto { Dong = r, MaSV = maSV, Loi = ex.Message });
+                    ketQua.Loi.Add(new ImportErrorDto { Dong = r, MaSV = maSV, Loi = ex.Message });
                 }
                 finally
                 {
@@ -125,59 +118,11 @@ namespace StudentPortal.Services
 
             ketQua.SoLoi = ketQua.Loi.Count;
 
-            var phien = new PhienNhap
-            {
-                ThoiDiem = DateTime.UtcNow,
-                Username = scope.UserName,
-                TenFile = tenFile,
-                SoThemMoi = ketQua.SoThemMoi,
-                SoCapNhat = ketQua.SoCapNhat,
-                SoLoi = ketQua.SoLoi,
-                ChiTietLoi = ketQua.Loi.Count > 0 ? JsonSerializer.Serialize(ketQua.Loi) : null
-            };
-            _context.PhienNhaps.Add(phien);
-            await _context.SaveChangesAsync();
-            await _auditLog.LogAsync("Import", "PhienNhap", phien.Id.ToString());
+            await _auditLog.LogAsync("Import", "File", tenFile,
+                $"Thêm mới: {ketQua.SoThemMoi}, cập nhật: {ketQua.SoCapNhat}, lỗi: {ketQua.SoLoi}");
             await _context.SaveChangesAsync();
 
-            ketQua.PhienNhapId = phien.Id;
             return ketQua;
-        }
-
-        public async Task<PagedResultDto<PhienNhapItemDto>> ListSessionsAsync(int page, int pageSize)
-        {
-            var scope = _scope.GetCurrent();
-            var query = _context.PhienNhaps.AsNoTracking();
-            if (!scope.IsAdmin)
-                query = query.Where(p => p.Username == scope.UserName);
-
-            return await query
-                .OrderByDescending(p => p.ThoiDiem).ThenByDescending(p => p.Id)
-                .ToPagedResultAsync(page, pageSize, p => new PhienNhapItemDto
-                {
-                    Id = p.Id,
-                    ThoiDiemFormatted = DateTime.SpecifyKind(p.ThoiDiem, DateTimeKind.Utc).ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
-                    Username = p.Username,
-                    TenFile = p.TenFile,
-                    SoThemMoi = p.SoThemMoi,
-                    SoCapNhat = p.SoCapNhat,
-                    SoLoi = p.SoLoi
-                });
-        }
-
-        // Xóa bản ghi lịch sử nhập; không ảnh hưởng hồ sơ sinh viên đã nhập
-        public async Task DeleteSessionAsync(long id)
-        {
-            var phien = await _context.PhienNhaps.FindAsync(id)
-                ?? throw new NghiepVuException("Không tìm thấy phiên nhập.", 404);
-
-            var scope = _scope.GetCurrent();
-            if (!scope.IsAdmin && phien.Username != scope.UserName)
-                throw new NghiepVuException("Bạn chỉ được xóa phiên nhập của mình.", 403);
-
-            _context.PhienNhaps.Remove(phien);
-            await _auditLog.LogAsync("XoaPhienNhap", "PhienNhap", id.ToString());
-            await _context.SaveChangesAsync();
         }
 
         // ===================== Xử lý từng dòng =====================
@@ -187,8 +132,8 @@ namespace StudentPortal.Services
             public DongLoiException(string message) : base(message) { }
         }
 
-        private sealed record DongNhap(string MaSV, string HoTen, DateTime NgaySinh, int GioiTinh, string MaLop,
-            string? SDT, string? Email, string? DiaChi, int TrangThai, string? MatKhau);
+        private sealed record DongNhap(string MaSV, string HoTen, DateTime NgaySinh, GioiTinh GioiTinh, string MaLop,
+            string? SDT, string? Email, string? DiaChi, TrangThaiHocTap TrangThai, string? MatKhau);
 
         private static DongNhap DocDong(IXLWorksheet ws, int r)
         {
@@ -201,52 +146,51 @@ namespace StudentPortal.Services
             var loi = new List<string>();
 
             var maSV = (Text(1) ?? "").ToUpperInvariant();
-            if (!Regex.IsMatch(maSV, "^[A-Z0-9]{6,15}$", RegexOptions.None, RegexTimeout))
-                loi.Add("Mã SV phải 6–15 ký tự chữ và số không dấu");
+            if (!ValidationRules.IsMaSo(maSV)) loi.Add("Mã SV phải 6–15 ký tự chữ và số không dấu");
 
             var hoTen = Text(2) ?? "";
-            if (hoTen.Length < 2 || hoTen.Length > 100 || hoTen.Any(char.IsDigit))
-                loi.Add("Họ tên bắt buộc, 2–100 ký tự, không chứa chữ số");
+            if (!ValidationRules.IsHoTen(hoTen)) loi.Add("Họ tên bắt buộc, 2–100 ký tự, không chứa chữ số");
 
             var ngaySinh = DocNgay(ws.Cell(r, 3));
             if (ngaySinh == null)
                 loi.Add("Ngày sinh bắt buộc, định dạng dd/MM/yyyy");
-            else if (ngaySinh > DateTime.Today.AddYears(-15))
+            else if (!ValidationRules.IsNgaySinh(ngaySinh.Value))
                 loi.Add("Ngày sinh không hợp lệ (tuổi tối thiểu 15)");
 
-            var gioiTinh = TextHelper.BoDau(Text(4)) switch
+            GioiTinh? gioiTinh = TextHelper.BoDau(Text(4)) switch
             {
-                "nu" => MaTrangThai.Nu,
-                "nam" => MaTrangThai.Nam,
-                "khac" => MaTrangThai.Khac,
-                _ => -1
+                "nam" => GioiTinh.Nam,
+                "nu" => GioiTinh.Nu,
+                "khac" => GioiTinh.Khac,
+                _ => null
             };
-            if (gioiTinh < 0) loi.Add("Giới tính phải là Nam/Nữ/Khác");
+            if (gioiTinh == null) loi.Add("Giới tính phải là Nam/Nữ/Khác");
 
             var maLop = Text(5) ?? "";
             if (maLop.Length == 0) loi.Add("Mã lớp bắt buộc");
 
             var sdt = Text(6);
-            if (sdt != null && !Regex.IsMatch(sdt, @"^0\d{9}$", RegexOptions.None, RegexTimeout))
-                loi.Add("SĐT gồm 10 chữ số, bắt đầu bằng 0");
+            if (sdt != null && !ValidationRules.IsSoDienThoai(sdt)) loi.Add("SĐT gồm 10 chữ số, bắt đầu bằng 0");
 
             var email = Text(7)?.ToLowerInvariant();
-            if (email != null && (email.Length > 100 || !Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.None, RegexTimeout)))
-                loi.Add("Email không đúng định dạng");
+            if (email != null && !ValidationRules.IsEmail(email)) loi.Add("Email không đúng định dạng");
 
-            var trangThai = TextHelper.BoDau(Text(9)) switch
+            var diaChi = Text(8);
+            if (diaChi is { Length: > 255 }) loi.Add("Địa chỉ tối đa 255 ký tự");
+
+            TrangThaiHocTap? trangThai = TextHelper.BoDau(Text(9)) switch
             {
-                "0" or "dang hoc" => DangHoc,
-                "1" or "bao luu" => BaoLuu,
-                "2" or "thoi hoc" => ThoiHoc,
-                "3" or "da tot nghiep" => DaTotNghiep,
-                _ => -1
+                "1" or "dang hoc" => TrangThaiHocTap.DangHoc,
+                "2" or "bao luu" => TrangThaiHocTap.BaoLuu,
+                "3" or "da tot nghiep" => TrangThaiHocTap.DaTotNghiep,
+                "4" or "thoi hoc" => TrangThaiHocTap.ThoiHoc,
+                _ => null
             };
-            if (trangThai < 0) loi.Add("Trạng thái phải là Đang học/Bảo lưu/Thôi học/Đã tốt nghiệp");
+            if (trangThai == null) loi.Add("Trạng thái phải là Đang học/Bảo lưu/Đã tốt nghiệp/Thôi học");
 
             if (loi.Count > 0) throw new DongLoiException(string.Join("; ", loi) + ".");
 
-            return new DongNhap(maSV, hoTen, ngaySinh!.Value, gioiTinh, maLop, sdt, email, Text(8), trangThai, Text(10));
+            return new DongNhap(maSV, hoTen, ngaySinh!.Value, gioiTinh!.Value, maLop, sdt, email, diaChi, trangThai!.Value, Text(10));
         }
 
         // Trả về true nếu thêm mới, false nếu cập nhật
@@ -260,10 +204,6 @@ namespace StudentPortal.Services
                 throw new DongLoiException($"Lớp '{d.MaLop}' không tồn tại hoặc ngoài phạm vi được phép.");
             if (hienCo != null && !lopDuocPhep.Contains(hienCo.MaLop))
                 throw new DongLoiException("Hồ sơ hiện có nằm ngoài phạm vi được phép.");
-
-            if (d.Email != null && await _context.SinhViens.IgnoreQueryFilters()
-                    .AnyAsync(s => s.Email == d.Email && s.MaSV != d.MaSV))
-                throw new DongLoiException("Email đã được sinh viên khác sử dụng.");
 
             return hienCo == null
                 ? await ThemMoiAsync(d)
@@ -283,6 +223,7 @@ namespace StudentPortal.Services
                 {
                     MaSV = d.MaSV,
                     HoTen = d.HoTen,
+                    HoTenKhongDau = TextHelper.BoDau(d.HoTen),
                     NgaySinh = d.NgaySinh,
                     GioiTinh = d.GioiTinh,
                     MaLop = d.MaLop,
@@ -290,10 +231,9 @@ namespace StudentPortal.Services
                     Email = d.Email,
                     DiaChi = d.DiaChi,
                     TrangThai = d.TrangThai,
-                    NgayTao = DateTime.UtcNow,
-                    NgayCapNhat = DateTime.UtcNow
+                    NgayTao = DateTime.UtcNow
                 });
-                await _auditLog.LogAsync("ImportTaoHoSo", "SinhVien", d.MaSV);
+                await _auditLog.LogAsync("TaoHoSo", "SinhVien", d.MaSV);
                 await _context.SaveChangesAsync();
 
                 // Lỗi tạo tài khoản: rollback cả hồ sơ mới (FR-13)
@@ -302,7 +242,7 @@ namespace StudentPortal.Services
                     throw new DongLoiException("Tạo tài khoản thất bại: " + taoTaiKhoan.Error);
 
                 // Hồ sơ Thôi học: tài khoản ở trạng thái khóa (FR-16)
-                if (d.TrangThai == ThoiHoc)
+                if (d.TrangThai == TrangThaiHocTap.ThoiHoc)
                 {
                     var khoa = await _account.SetLockAsync(d.MaSV, true, "Nhập Excel: hồ sơ Thôi học");
                     if (!khoa.Succeeded)
@@ -337,9 +277,14 @@ namespace StudentPortal.Services
                 if (loi != null) throw new DongLoiException(loi);
             }
 
+            var lopCu = sv.MaLop;
+            var trangThaiCu = sv.TrangThai;
+
             if (doiLop) sv.MaLop = d.MaLop;
             if (doiTrangThai) sv.TrangThai = d.TrangThai;
+            if (doiLop || doiTrangThai) sv.DaCoBienDong = true;
             sv.HoTen = d.HoTen;
+            sv.HoTenKhongDau = TextHelper.BoDau(d.HoTen);
             sv.NgaySinh = d.NgaySinh;
             sv.GioiTinh = d.GioiTinh;
             // Ô trống ở trường liên hệ tùy chọn giữ giá trị hiện có
@@ -350,16 +295,18 @@ namespace StudentPortal.Services
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
-                await _auditLog.LogAsync("ImportCapNhatHoSo", "SinhVien", sv.MaSV);
-                if (doiLop) await _auditLog.LogAsync("ChuyenLop", "SinhVien", sv.MaSV);
-                if (doiTrangThai) await _auditLog.LogAsync("DoiTrangThai", "SinhVien", sv.MaSV);
+                await _auditLog.LogAsync("SuaHoSo", "SinhVien", sv.MaSV);
+                if (doiLop) await _auditLog.LogAsync("ChuyenLop", "SinhVien", sv.MaSV, $"{lopCu} -> {d.MaLop}");
+                if (doiTrangThai)
+                    await _auditLog.LogAsync("DoiTrangThai", "SinhVien", sv.MaSV,
+                        $"{trangThaiCu.TenHienThi()} -> {d.TrangThai.TenHienThi()}");
                 await _context.SaveChangesAsync();
 
                 // Chuyển sang Thôi học tự động khóa tài khoản (FR-16)
-                if (doiTrangThai && d.TrangThai == ThoiHoc)
+                if (doiTrangThai && d.TrangThai == TrangThaiHocTap.ThoiHoc)
                 {
                     var userName = await _context.Users.AsNoTracking()
-                        .Where(u => u.MaSV == sv.MaSV && u.TrangThaiTaiKhoan != MaTrangThai.TkBiKhoa)
+                        .Where(u => u.MaSV == sv.MaSV && u.TrangThaiTaiKhoan != TrangThaiTaiKhoan.BiKhoa)
                         .Select(u => u.UserName)
                         .FirstOrDefaultAsync();
                     if (userName != null)
@@ -386,16 +333,16 @@ namespace StudentPortal.Services
         }
 
         // Quy tắc chuyển trạng thái FR-16; trả về thông báo lỗi hoặc null nếu hợp lệ
-        private static string? KiemTraChuyenTrangThai(int cu, int moi, bool isAdmin)
+        private static string? KiemTraChuyenTrangThai(TrangThaiHocTap cu, TrangThaiHocTap moi, bool isAdmin)
         {
             switch (cu)
             {
-                case DangHoc when moi is BaoLuu or DaTotNghiep or ThoiHoc:
-                case BaoLuu when moi is DangHoc or ThoiHoc:
+                case TrangThaiHocTap.DangHoc when moi is TrangThaiHocTap.BaoLuu or TrangThaiHocTap.DaTotNghiep or TrangThaiHocTap.ThoiHoc:
+                case TrangThaiHocTap.BaoLuu when moi is TrangThaiHocTap.DangHoc or TrangThaiHocTap.ThoiHoc:
                     return null;
-                case ThoiHoc when moi == DangHoc:
+                case TrangThaiHocTap.ThoiHoc when moi == TrangThaiHocTap.DangHoc:
                     return isAdmin ? null : "Chỉ Admin được chuyển Thôi học → Đang học.";
-                case DaTotNghiep:
+                case TrangThaiHocTap.DaTotNghiep:
                     // Admin sửa trạng thái hồ sơ Đã tốt nghiệp bắt buộc kèm lý do - file import không có cột lý do
                     return "Hồ sơ Đã tốt nghiệp chỉ được Admin sửa trạng thái kèm lý do qua chức năng Đổi trạng thái.";
                 default:

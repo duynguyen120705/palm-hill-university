@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using StudentPortal.Infrastructure;
 using StudentPortal.Infrastructure.Authorization;
 using StudentPortal.Models.ViewModels;
 using StudentPortal.Services.Interfaces;
@@ -12,12 +11,10 @@ namespace StudentPortal.Controllers
     public class UsersController : Controller
     {
         private readonly IAccountService _accountService;
-        private readonly ILogger<UsersController> _logger;
 
-        public UsersController(IAccountService accountService, ILogger<UsersController> logger)
+        public UsersController(IAccountService accountService)
         {
             _accountService = accountService;
-            _logger = logger;
         }
 
         // GET: /Users
@@ -26,78 +23,46 @@ namespace StudentPortal.Controllers
             return View();
         }
 
-        // GET: /Users/List?keyword=&vaiTro=&maKhoa=&trangThai=&page=1&pageSize=10 (FR-01)
+        // GET: /Users/List?keyword=&vaiTro=&maKhoa=&trangThai=&page=1&pageSize=20 (FR-01)
         [HttpGet]
-        public Task<IActionResult> List([FromQuery] TaiKhoanFilterDto filter) =>
-            XuLyAsync(async () => Json(await _accountService.ListStaffAsync(filter)));
+        public async Task<IActionResult> List([FromQuery] UserFilterVm filter) =>
+            Ok(ApiResponse.Ok(await _accountService.ListStaffAsync(filter)));
 
-        // POST: /Users/Create (jQuery AJAX, JSON) - FR-02
+        // POST: /Users/Create (Ajax, JSON) - FR-02
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public Task<IActionResult> Create([FromBody] StaffCreateDto dto) =>
-            XuLyAsync(async () =>
-            {
-                (await _accountService.CreateStaffAccountAsync(dto)).ThrowIfFailed();
-                return Ok(new { success = true, message = $"Đã tạo tài khoản '{dto.UserName.Trim()}'." });
-            });
-
-        // POST: /Users/Edit (jQuery AJAX, JSON) - FR-03
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public Task<IActionResult> Edit([FromBody] TaiKhoanUpdateDto dto) =>
-            XuLyAsync(async () =>
-            {
-                await _accountService.UpdateStaffAsync(dto);
-                var data = await _accountService.GetStaffAsync(dto.Id);
-                return Ok(new { success = true, message = $"Đã cập nhật tài khoản '{data.UserName}'.", data });
-            });
-
-        // POST: /Users/ResetPassword (jQuery AJAX, JSON) - FR-04
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public Task<IActionResult> ResetPassword([FromBody] DatLaiMatKhauDto dto) =>
-            XuLyAsync(async () =>
-            {
-                var taiKhoan = await _accountService.GetStaffAsync(dto.Id);
-                (await _accountService.ResetPasswordAsync(taiKhoan.UserName, dto.MatKhauMoi)).ThrowIfFailed();
-                return Ok(new { success = true, message = "Đã cấp lại mật khẩu." });
-            });
-
-        // POST: /Users/SetLock (jQuery AJAX, JSON) - FR-05: khóa thay cho xóa vì tài khoản không bị xóa
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public Task<IActionResult> SetLock([FromBody] DoiTrangThaiTaiKhoanDto dto) =>
-            XuLyAsync(async () =>
-            {
-                var taiKhoan = await _accountService.GetStaffAsync(dto.Id);
-                (await _accountService.SetLockAsync(taiKhoan.UserName, dto.Khoa, dto.LyDo)).ThrowIfFailed();
-                var data = await _accountService.GetStaffAsync(dto.Id);
-                var hanhDong = dto.Khoa ? "khóa" : "mở khóa";
-                return Ok(new { success = true, message = $"Đã {hanhDong} tài khoản '{data.UserName}'.", data });
-            });
-
-        // Gom xử lý lỗi validate / nghiệp vụ / hệ thống cho các endpoint Ajax
-        private async Task<IActionResult> XuLyAsync(Func<Task<IActionResult>> action)
+        public async Task<IActionResult> Create([FromBody] StaffCreateDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList();
-                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ.", errors });
-            }
+            (await _accountService.CreateStaffAccountAsync(dto)).ThrowIfFailed();
+            return Ok(ApiResponse.Ok(message: $"Đã tạo tài khoản '{dto.UserName.Trim()}'."));
+        }
 
-            try
-            {
-                return await action();
-            }
-            catch (NghiepVuException ex)
-            {
-                return StatusCode(ex.StatusCode, new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi xử lý tài khoản");
-                return StatusCode(500, new { success = false, message = "Lỗi máy chủ khi xử lý tài khoản." });
-            }
+        // POST: /Users/Edit (Ajax, JSON) - FR-03
+        [HttpPost]
+        public async Task<IActionResult> Edit([FromBody] StaffEditVm dto)
+        {
+            await _accountService.UpdateStaffAsync(dto);
+            var data = await _accountService.GetStaffAsync(dto.Id);
+            return Ok(ApiResponse.Ok(data, $"Đã cập nhật tài khoản '{data.UserName}'."));
+        }
+
+        // POST: /Users/ResetPassword (Ajax, JSON) - FR-04
+        [HttpPost]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordVm dto)
+        {
+            var taiKhoan = await _accountService.GetStaffAsync(dto.Id);
+            (await _accountService.ResetPasswordAsync(taiKhoan.UserName, dto.MatKhauMoi)).ThrowIfFailed();
+            return Ok(ApiResponse.Ok(message: $"Đã cấp lại mật khẩu cho '{taiKhoan.UserName}'."));
+        }
+
+        // POST: /Users/SetLock (Ajax, JSON) - FR-05: khóa thay cho xóa vì tài khoản không bị xóa
+        [HttpPost]
+        public async Task<IActionResult> SetLock([FromBody] SetLockVm dto)
+        {
+            var taiKhoan = await _accountService.GetStaffAsync(dto.Id);
+            (await _accountService.SetLockAsync(taiKhoan.UserName, dto.Khoa, dto.LyDo)).ThrowIfFailed();
+            var data = await _accountService.GetStaffAsync(dto.Id);
+            var hanhDong = dto.Khoa ? "khóa" : "mở khóa";
+            return Ok(ApiResponse.Ok(data, $"Đã {hanhDong} tài khoản '{data.UserName}'."));
         }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using StudentPortal.Data;
 using StudentPortal.Infrastructure;
 using StudentPortal.Infrastructure.Authorization;
+using StudentPortal.Infrastructure.Validation;
 using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
 using StudentPortal.Services.Interfaces;
@@ -12,8 +13,6 @@ namespace StudentPortal.Services
 {
     public class AccountService : IAccountService
     {
-        private const int BiKhoa = MaTrangThai.TkBiKhoa, HoatDong = MaTrangThai.TkHoatDong;
-
         private readonly AppDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAuditLogService _auditLog;
@@ -35,13 +34,13 @@ namespace StudentPortal.Services
             {
                 KiemTraChinhSachMatKhau(password);
                 if (await _userManager.FindByNameAsync(maSV) != null)
-                    throw new NghiepVuException("Tên đăng nhập (Mã SV) đã tồn tại.");
+                    throw new NghiepVuException("Tên đăng nhập (Mã SV) đã tồn tại.", StatusCodes.Status409Conflict);
 
                 var user = new ApplicationUser
                 {
                     UserName = maSV,
                     MaSV = maSV,
-                    TrangThaiTaiKhoan = HoatDong,
+                    TrangThaiTaiKhoan = TrangThaiTaiKhoan.HoatDong,
                     LockoutEnabled = true
                 };
                 KiemTraIdentity(await _userManager.CreateAsync(user, password));
@@ -55,14 +54,14 @@ namespace StudentPortal.Services
                 var maKhoa = await KiemTraVaiTroVaKhoaAsync(dto.VaiTro, dto.MaKhoaPhuTrach);
                 var userName = dto.UserName.Trim();
                 if (await _userManager.FindByNameAsync(userName) != null)
-                    throw new NghiepVuException($"Tên đăng nhập '{userName}' đã tồn tại.");
+                    throw new NghiepVuException($"Tên đăng nhập '{userName}' đã tồn tại.", StatusCodes.Status409Conflict);
 
                 var user = new ApplicationUser
                 {
                     UserName = userName,
                     HoTen = dto.HoTen.Trim(),
                     MaKhoaPhuTrach = maKhoa,
-                    TrangThaiTaiKhoan = HoatDong,
+                    TrangThaiTaiKhoan = TrangThaiTaiKhoan.HoatDong,
                     LockoutEnabled = true
                 };
                 KiemTraIdentity(await _userManager.CreateAsync(user, dto.MatKhau));
@@ -90,36 +89,37 @@ namespace StudentPortal.Services
                 var user = await TimTheoTenAsync(userName);
                 if (locked)
                 {
-                    if (user.TrangThaiTaiKhoan == BiKhoa)
+                    if (user.TrangThaiTaiKhoan == TrangThaiTaiKhoan.BiKhoa)
                         throw new NghiepVuException("Tài khoản đã bị khóa.");
                     if (await _userManager.IsInRoleAsync(user, Roles.Admin) && await DemAdminHoatDongKhacAsync(user.Id) == 0)
                         throw new NghiepVuException("Không thể khóa Admin hoạt động cuối cùng của hệ thống.");
 
                     // Trạng thái nghiệp vụ + LockoutEnd để Identity chặn đăng nhập
-                    user.TrangThaiTaiKhoan = BiKhoa;
+                    user.TrangThaiTaiKhoan = TrangThaiTaiKhoan.BiKhoa;
                     user.LockoutEnd = DateTimeOffset.MaxValue;
-                    KiemTraIdentity(await _userManager.UpdateAsync(user));
-                    // Phiên đăng nhập hiện có mất hiệu lực từ yêu cầu kế tiếp
-                    KiemTraIdentity(await _userManager.UpdateSecurityStampAsync(user));
                 }
                 else
                 {
-                    if (user.TrangThaiTaiKhoan == HoatDong)
+                    if (user.TrangThaiTaiKhoan == TrangThaiTaiKhoan.HoatDong)
                         throw new NghiepVuException("Tài khoản đang hoạt động.");
 
-                    user.TrangThaiTaiKhoan = HoatDong;
+                    user.TrangThaiTaiKhoan = TrangThaiTaiKhoan.HoatDong;
                     user.LockoutEnd = null;
                     user.AccessFailedCount = 0;
-                    KiemTraIdentity(await _userManager.UpdateAsync(user));
                 }
-                await _auditLog.LogAsync(locked ? "KhoaTaiKhoan" : "MoKhoaTaiKhoan", "TaiKhoan", user.UserName!, reason);
+
+                user.LyDoKhoa = reason.Trim();
+                KiemTraIdentity(await _userManager.UpdateAsync(user));
+                // Thay đổi có hiệu lực từ yêu cầu kế tiếp (UC08, UC16)
+                KiemTraIdentity(await _userManager.UpdateSecurityStampAsync(user));
+                await _auditLog.LogAsync(locked ? "KhoaTaiKhoan" : "MoKhoaTaiKhoan", "TaiKhoan", user.UserName!, reason.Trim());
             });
 
         public Task<Result> ChangePasswordAsync(string userId, string current, string newPwd) =>
             ThucHienAsync(async () =>
             {
                 var user = await _userManager.FindByIdAsync(userId)
-                    ?? throw new NghiepVuException("Phiên đăng nhập không hợp lệ.", 401);
+                    ?? throw new NghiepVuException("Phiên đăng nhập không hợp lệ.", StatusCodes.Status401Unauthorized);
 
                 if (!await _userManager.CheckPasswordAsync(user, current))
                     throw new NghiepVuException("Mật khẩu hiện tại không đúng.");
@@ -133,11 +133,11 @@ namespace StudentPortal.Services
 
         // ===================== Quản lý tài khoản Admin/Giáo vụ (FR-01, FR-03) =====================
 
-        public async Task<PagedResultDto<TaiKhoanItemDto>> ListStaffAsync(TaiKhoanFilterDto filter)
+        public async Task<PagedResult<UserListItemDto>> ListStaffAsync(UserFilterVm filter)
         {
             var query = QueryTaiKhoan();
 
-            // Không phân biệt hoa thường và dấu: "nguyen" khớp "Nguyễn", "GV.CNTT" khớp "gv.cntt"
+            // Không phân biệt hoa thường và dấu: "nguyen" khớp "Nguyễn"
             if (!string.IsNullOrWhiteSpace(filter.Keyword))
             {
                 var kw = filter.Keyword.Trim();
@@ -159,16 +159,16 @@ namespace StudentPortal.Services
                 .ToPagedResultAsync(filter.Page, filter.PageSize, ItemSelector);
         }
 
-        public async Task<TaiKhoanItemDto> GetStaffAsync(string id) =>
+        public async Task<UserListItemDto> GetStaffAsync(string id) =>
             await QueryTaiKhoan().Where(x => x.User.Id == id).Select(ItemSelector).FirstOrDefaultAsync()
-                ?? throw new NghiepVuException("Không tìm thấy tài khoản Admin/Giáo vụ.", 404);
+                ?? throw new NghiepVuException("Không tìm thấy tài khoản Admin/Giáo vụ.", StatusCodes.Status404NotFound);
 
-        public async Task UpdateStaffAsync(TaiKhoanUpdateDto dto)
+        public async Task UpdateStaffAsync(StaffEditVm dto)
         {
             var result = await ThucHienAsync(async () =>
             {
                 var user = await _userManager.FindByIdAsync(dto.Id)
-                    ?? throw new NghiepVuException("Không tìm thấy tài khoản.", 404);
+                    ?? throw new NghiepVuException("Không tìm thấy tài khoản.", StatusCodes.Status404NotFound);
                 var vaiTroCu = await LayVaiTroQuanLyAsync(user);
                 var maKhoa = await KiemTraVaiTroVaKhoaAsync(dto.VaiTro, dto.MaKhoaPhuTrach);
 
@@ -176,10 +176,11 @@ namespace StudentPortal.Services
                 var doiKhoa = user.MaKhoaPhuTrach != maKhoa;
 
                 // Không được làm mất Admin hoạt động cuối cùng (FR-03, FR-05)
-                if (doiVaiTro && vaiTroCu == Roles.Admin && user.TrangThaiTaiKhoan == HoatDong
+                if (doiVaiTro && vaiTroCu == Roles.Admin && user.TrangThaiTaiKhoan == TrangThaiTaiKhoan.HoatDong
                     && await DemAdminHoatDongKhacAsync(user.Id) == 0)
                     throw new NghiepVuException("Không thể đổi vai trò Admin hoạt động cuối cùng của hệ thống.");
 
+                var khoaCu = user.MaKhoaPhuTrach;
                 user.HoTen = dto.HoTen.Trim();
                 user.MaKhoaPhuTrach = maKhoa;
                 KiemTraIdentity(await _userManager.UpdateAsync(user));
@@ -194,8 +195,8 @@ namespace StudentPortal.Services
                 {
                     // Đổi SecurityStamp để quyền/khoa mới áp dụng từ yêu cầu kế tiếp của tài khoản đó
                     KiemTraIdentity(await _userManager.UpdateSecurityStampAsync(user));
-                    if (doiVaiTro) await _auditLog.LogAsync("DoiQuyen", "TaiKhoan", user.UserName!);
-                    if (doiKhoa) await _auditLog.LogAsync("DoiKhoaPhuTrach", "TaiKhoan", user.UserName!);
+                    await _auditLog.LogAsync("DoiQuyenKhoa", "TaiKhoan", user.UserName!,
+                        $"Vai trò: {vaiTroCu} -> {dto.VaiTro}; Khoa: {khoaCu ?? "-"} -> {maKhoa ?? "-"}");
                 }
             });
             result.ThrowIfFailed();
@@ -204,7 +205,7 @@ namespace StudentPortal.Services
         // ===================== Hồ sơ cá nhân (FR-11, FR-12) =====================
 
         // Định danh luôn lấy từ tài khoản đăng nhập, không nhận từ client (FR-09)
-        public async Task<HoSoCaNhanDto> GetProfileAsync()
+        public async Task<ProfileVm> GetProfileAsync()
         {
             var taiKhoan = await LayTaiKhoanDangNhapAsync();
             var roles = await _userManager.GetRolesAsync(taiKhoan);
@@ -212,13 +213,13 @@ namespace StudentPortal.Services
                 : roles.Contains(Roles.CanBo) ? Roles.CanBo
                 : Roles.SinhVien;
 
-            var hoSo = new HoSoCaNhanDto
+            var hoSo = new ProfileVm
             {
                 UserName = taiKhoan.UserName!,
                 HoTen = taiKhoan.HoTen,
                 VaiTro = vaiTro,
                 MaKhoaPhuTrach = taiKhoan.MaKhoaPhuTrach,
-                TrangThaiTaiKhoanText = MaTrangThai.TenTrangThaiTaiKhoan(taiKhoan.TrangThaiTaiKhoan)
+                TrangThaiTaiKhoanText = taiKhoan.TrangThaiTaiKhoan.TenHienThi()
             };
 
             if (taiKhoan.MaKhoaPhuTrach != null)
@@ -234,23 +235,18 @@ namespace StudentPortal.Services
             return hoSo;
         }
 
-        public async Task<HoSoSinhVienDto> UpdateContactAsync(CapNhatLienHeDto dto)
+        public async Task<StudentProfileVm> UpdateContactAsync(ContactEditVm dto)
         {
             var taiKhoan = await LayTaiKhoanDangNhapAsync();
             if (taiKhoan.MaSV == null || !await _userManager.IsInRoleAsync(taiKhoan, Roles.SinhVien))
-                throw new NghiepVuException("Chỉ sinh viên được cập nhật thông tin liên hệ.", 403);
+                throw new NghiepVuException("Chỉ sinh viên được cập nhật thông tin liên hệ.", StatusCodes.Status403Forbidden);
 
             // Quyền sở hữu: chỉ hồ sơ gắn với tài khoản đang đăng nhập (global filter loại hồ sơ đã xóa mềm)
             var sv = await _context.SinhViens.FirstOrDefaultAsync(s => s.MaSV == taiKhoan.MaSV)
-                ?? throw new NghiepVuException("Không tìm thấy hồ sơ sinh viên.", 404);
-
-            var email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim().ToLowerInvariant();
-            if (email != null && await _context.SinhViens.IgnoreQueryFilters()
-                    .AnyAsync(s => s.Email == email && s.MaSV != sv.MaSV))
-                throw new NghiepVuException("Email đã được sinh viên khác sử dụng.");
+                ?? throw new NghiepVuException("Không tìm thấy hồ sơ sinh viên.", StatusCodes.Status404NotFound);
 
             sv.SDT = string.IsNullOrWhiteSpace(dto.SDT) ? null : dto.SDT.Trim();
-            sv.Email = email;
+            sv.Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim().ToLowerInvariant();
             sv.DiaChi = string.IsNullOrWhiteSpace(dto.DiaChi) ? null : dto.DiaChi.Trim();
 
             // Chỉ ghi định danh, không ghi giá trị liên hệ (NFR-07); lưu cùng một lần SaveChanges
@@ -263,7 +259,7 @@ namespace StudentPortal.Services
         // ===================== Hỗ trợ =====================
 
         // Chạy thao tác trong giao dịch của bên gọi; nếu bên gọi chưa mở thì tự mở và commit.
-        // Lưu nhật ký đã Add trong thao tác. Lỗi nghiệp vụ trả về Result.Fail (giao dịch tự mở sẽ rollback).
+        // Lưu nhật ký đã Add trong thao tác. Lỗi 400/409 trả về Result.Fail (giao dịch tự mở sẽ rollback).
         private async Task<Result> ThucHienAsync(Func<Task> thaoTac)
         {
             var tuMo = _context.Database.CurrentTransaction == null;
@@ -275,9 +271,9 @@ namespace StudentPortal.Services
                 if (tx != null) await tx.CommitAsync();
                 return Result.Ok();
             }
-            catch (NghiepVuException ex) when (ex.StatusCode == StatusCodes.Status400BadRequest)
+            catch (NghiepVuException ex) when (ex.StatusCode is StatusCodes.Status400BadRequest or StatusCodes.Status409Conflict)
             {
-                return Result.Fail(ex.Message);
+                return Result.Fail(ex.Message, ex.StatusCode);
             }
         }
 
@@ -295,8 +291,8 @@ namespace StudentPortal.Services
             public string VaiTro { get; set; } = string.Empty;
         }
 
-        private static readonly Expression<Func<TaiKhoanVaiTro, TaiKhoanItemDto>> ItemSelector =
-            x => new TaiKhoanItemDto
+        private static readonly Expression<Func<TaiKhoanVaiTro, UserListItemDto>> ItemSelector =
+            x => new UserListItemDto
             {
                 Id = x.User.Id,
                 UserName = x.User.UserName!,
@@ -305,7 +301,7 @@ namespace StudentPortal.Services
                 MaKhoaPhuTrach = x.User.MaKhoaPhuTrach,
                 TenKhoa = x.User.KhoaPhuTrach != null ? x.User.KhoaPhuTrach.TenKhoa : null,
                 TrangThai = x.User.TrangThaiTaiKhoan,
-                TrangThaiText = x.User.TrangThaiTaiKhoan == HoatDong ? "Hoạt động" : "Bị khóa"
+                TrangThaiText = x.User.TrangThaiTaiKhoan == TrangThaiTaiKhoan.HoatDong ? "Hoạt động" : "Bị khóa"
             };
 
         // Trả về mã khoa sẽ lưu: bắt buộc với Giáo vụ, để trống với Admin
@@ -328,11 +324,12 @@ namespace StudentPortal.Services
             var roles = await _userManager.GetRolesAsync(user);
             if (roles.Contains(Roles.Admin)) return Roles.Admin;
             if (roles.Contains(Roles.CanBo)) return Roles.CanBo;
-            throw new NghiepVuException("Không tìm thấy tài khoản Admin/Giáo vụ.", 404);
+            throw new NghiepVuException("Không tìm thấy tài khoản Admin/Giáo vụ.", StatusCodes.Status404NotFound);
         }
 
         private Task<int> DemAdminHoatDongKhacAsync(string userId) =>
-            QueryTaiKhoan().CountAsync(x => x.VaiTro == Roles.Admin && x.User.TrangThaiTaiKhoan == HoatDong && x.User.Id != userId);
+            QueryTaiKhoan().CountAsync(x => x.VaiTro == Roles.Admin
+                && x.User.TrangThaiTaiKhoan == TrangThaiTaiKhoan.HoatDong && x.User.Id != userId);
 
         private async Task<ApplicationUser> TimTheoTenAsync(string userName) =>
             await _userManager.FindByNameAsync(userName)
@@ -342,34 +339,33 @@ namespace StudentPortal.Services
         {
             var principal = _httpContextAccessor.HttpContext?.User;
             return (principal == null ? null : await _userManager.GetUserAsync(principal))
-                ?? throw new NghiepVuException("Phiên đăng nhập không hợp lệ.", 401);
+                ?? throw new NghiepVuException("Phiên đăng nhập không hợp lệ.", StatusCodes.Status401Unauthorized);
         }
 
-        private Task<HoSoSinhVienDto?> TimHoSoSinhVienAsync(string maSV) =>
+        private Task<StudentProfileVm?> TimHoSoSinhVienAsync(string maSV) =>
             _context.SinhViens.AsNoTracking()
                 .Where(s => s.MaSV == maSV)
-                .Select(s => new HoSoSinhVienDto
+                .Select(s => new StudentProfileVm
                 {
                     MaSV = s.MaSV,
                     HoTen = s.HoTen,
                     NgaySinhFormatted = s.NgaySinh.ToString("dd/MM/yyyy"),
-                    GioiTinhText = MaTrangThai.TenGioiTinh(s.GioiTinh),
+                    GioiTinhText = s.GioiTinh.TenHienThi(),
                     MaLop = s.MaLop,
                     TenLop = s.Lop!.TenLop,
                     TenKhoa = s.Lop.Khoa!.TenKhoa,
                     MaKhoaHoc = s.Lop.MaKhoaHoc,
-                    TrangThaiText = MaTrangThai.TenTrangThai(s.TrangThai),
+                    TrangThaiText = s.TrangThai.TenHienThi(),
                     SDT = s.SDT,
                     Email = s.Email,
                     DiaChi = s.DiaChi
                 })
                 .FirstOrDefaultAsync();
 
-        // Tối thiểu 8 ký tự, gồm cả chữ và số (mục 3.4)
         private static void KiemTraChinhSachMatKhau(string matKhau)
         {
-            if (matKhau.Length < 8 || !matKhau.Any(char.IsLetter) || !matKhau.Any(char.IsDigit))
-                throw new NghiepVuException("Mật khẩu tối thiểu 8 ký tự, gồm cả chữ và số.");
+            if (!ValidationRules.IsMatKhauManh(matKhau))
+                throw new NghiepVuException(ValidationRules.MatKhauMessage);
         }
 
         private static void KiemTraIdentity(IdentityResult result)

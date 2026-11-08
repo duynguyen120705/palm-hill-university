@@ -1,4 +1,4 @@
-// FR-27 Thống kê sinh viên - render bảng bằng XMLHttpRequest
+// FR-27 Thống kê sinh viên, FR-29 Xuất báo cáo thống kê
 (function () {
     'use strict';
 
@@ -11,36 +11,6 @@
     const status = document.getElementById('tkStatus');
 
     let allLops = [];
-
-    // Gửi GET bằng XMLHttpRequest, trả JSON qua callback
-    function xhrGetJson(url, onSuccess, onError) {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.setRequestHeader('Accept', 'application/json');
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return;
-
-            if (xhr.status === 200) {
-                try {
-                    const res = JSON.parse(xhr.responseText);
-                    if (res.success) onSuccess(res.data);
-                    else onError(res.message || 'Yêu cầu không thành công.');
-                } catch (e) {
-                    onError('Phản hồi không đúng định dạng JSON.');
-                }
-            } else if (xhr.status === 401 || xhr.status === 403) {
-                onError('Bạn không có quyền xem thống kê.');
-            } else {
-                onError('Lỗi máy chủ (HTTP ' + xhr.status + ').');
-            }
-        };
-        xhr.onerror = function () {
-            onError('Không kết nối được máy chủ.');
-        };
-        xhr.send();
-    }
 
     // Tạo ô bảng bằng textContent để tránh XSS
     function cell(text, className) {
@@ -121,28 +91,26 @@
     function xuat(format) {
         const params = filterParams();
         params.set('format', format);
-        taiFileXuat('/Statistics/Export?' + params.toString(), function (msg) {
+        App.download('/Statistics/Export?' + params.toString(), function (msg) {
             status.textContent = msg;
         });
     }
 
     function loadThongKe() {
-        const params = filterParams();
-
         status.textContent = 'Đang tải thống kê...';
         const started = performance.now();
 
-        xhrGetJson('/Statistics/Data?' + params.toString(), function (data) {
-            renderTable(data);
+        App.get('/Statistics/Data?' + filterParams().toString()).then(function (res) {
+            renderTable(res.data);
             status.textContent = 'Cập nhật lúc ' + new Date().toLocaleTimeString('vi-VN') +
                 ' (' + Math.round(performance.now() - started) + ' ms)';
-        }, function (msg) {
-            status.textContent = msg;
+        }).catch(function (err) {
+            status.textContent = err.message;
         });
     }
 
     function loadBoLoc() {
-        taiDanhMucBoLoc().then(function (data) {
+        App.loadFilters().then(function (data) {
             fillSelect(selKhoa, data.khoas);
             fillSelect(selKhoaHoc, data.khoaHocs);
             allLops = data.lops;

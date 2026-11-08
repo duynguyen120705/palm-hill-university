@@ -22,7 +22,7 @@ namespace StudentPortal.Infrastructure.Authorization
 
         public override async Task<bool> CanSignInAsync(ApplicationUser user)
         {
-            return user.TrangThaiTaiKhoan == MaTrangThai.TkHoatDong && await base.CanSignInAsync(user);
+            return user.TrangThaiTaiKhoan == TrangThaiTaiKhoan.HoatDong && await base.CanSignInAsync(user);
         }
 
         public override async Task<ApplicationUser?> ValidateSecurityStampAsync(ClaimsPrincipal? principal)
@@ -30,7 +30,7 @@ namespace StudentPortal.Infrastructure.Authorization
             var user = await base.ValidateSecurityStampAsync(principal);
             // Chặn cả trường hợp tài khoản bị khóa mà không đổi SecurityStamp.
             // Không xét khóa tạm do đăng nhập sai để người khác gõ sai mật khẩu không đá phiên hợp lệ ra.
-            return user != null && user.TrangThaiTaiKhoan == MaTrangThai.TkHoatDong ? user : null;
+            return user != null && user.TrangThaiTaiKhoan == TrangThaiTaiKhoan.HoatDong ? user : null;
         }
     }
 }

@@ -10,6 +10,6 @@ namespace StudentPortal.Services.Interfaces
         // Áp phạm vi dữ liệu trước, sau đó tiêu chí lọc và từ khóa
         IQueryable<SinhVien> BuildQuery(StudentFilter filter);
 
-        Task<PagedResultDto<SinhVienItemDto>> SearchAsync(StudentFilter filter);
+        Task<PagedResult<StudentListItemDto>> SearchAsync(StudentFilter filter);
     }
 }

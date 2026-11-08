@@ -7,6 +7,6 @@ namespace StudentPortal.Services.Interfaces
     {
         // Lựa chọn cho dropdown (Catalog/Lookup), đã giới hạn theo phạm vi dữ liệu.
         // type: khoa | khoahoc | lop; với lop có thể lọc theo maKhoa, maKhoaHoc
-        Task<List<LuaChonDto>> LookupAsync(string type, string? maKhoa, string? maKhoaHoc);
+        Task<List<LookupItemDto>> LookupAsync(string type, string? maKhoa, string? maKhoaHoc);
     }
 }

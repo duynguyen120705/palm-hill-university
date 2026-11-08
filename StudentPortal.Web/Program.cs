@@ -4,6 +4,7 @@ using StudentPortal.Data;
 using StudentPortal.Data.Seed;
 using StudentPortal.Infrastructure;
 using StudentPortal.Infrastructure.Authorization;
+using StudentPortal.Infrastructure.Validation;
 using StudentPortal.Models.Entities;
 using StudentPortal.Repositories;
 using StudentPortal.Services;
@@ -21,8 +22,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // 2. ASP.NET Core Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
-    // Chính sách mật khẩu theo SRS mục 3.4: tối thiểu 8 ký tự, gồm cả chữ và số
-    // (Identity không có tùy chọn "bắt buộc chữ cái" - phần này kiểm tra ở tầng Service)
+    // Chính sách mật khẩu (mục 3.2.1.6): tối thiểu 8 ký tự, gồm cả chữ và số
+    // (Identity không có tùy chọn "bắt buộc chữ cái" - dùng LetterPasswordValidator)
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = false;
     options.Password.RequireNonAlphanumeric = false;
@@ -39,6 +40,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddSignInManager<AppSignInManager>()
+.AddPasswordValidator<LetterPasswordValidator>()
 .AddClaimsPrincipalFactory<AppClaimsPrincipalFactory>()
 .AddDefaultTokenProviders();
 
@@ -49,14 +51,14 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
     options.ValidationInterval = TimeSpan.Zero;
 });
 
-// Cookie xác thực (NFR-01): HttpOnly, Secure, hết hạn sau 60 phút không hoạt động
+// Cookie xác thực (NFR-01): HttpOnly, Secure, hết hạn sau 30 phút không hoạt động
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = ".StudentPortal.Auth";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
-    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
     options.SlidingExpiration = true;
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
@@ -78,7 +80,12 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 // 3. MVC
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    // Anti-forgery cho mọi thao tác thay đổi dữ liệu (mục 3.2.1.5); Ajax gửi token qua header RequestVerificationToken
+    options.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+    options.Filters.Add<AjaxModelStateFilter>();
+});
 builder.Services.AddHttpContextAccessor();
 
 // QuestPDF (xuất PDF - FR-28, FR-29) dùng giấy phép Community

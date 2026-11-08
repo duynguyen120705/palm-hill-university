@@ -1,10 +1,27 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using StudentPortal.Infrastructure.Validation;
 
 namespace StudentPortal.Models.ViewModels
 {
+    // FR-06 Đăng nhập
+    public class LoginVm
+    {
+        [Required(ErrorMessage = "Vui lòng nhập tên đăng nhập")]
+        [StringLength(256)]
+        [Display(Name = "Tên đăng nhập")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Vui lòng nhập mật khẩu")]
+        [DataType(DataType.Password)]
+        [Display(Name = "Mật khẩu")]
+        public string MatKhau { get; set; } = string.Empty;
+
+        public string? ReturnUrl { get; set; }
+    }
+
     // FR-11 Xem hồ sơ cá nhân
-    public class HoSoCaNhanDto
+    public class ProfileVm
     {
         public string UserName { get; set; } = string.Empty;
         public string? HoTen { get; set; }
@@ -14,10 +31,10 @@ namespace StudentPortal.Models.ViewModels
         public string TrangThaiTaiKhoanText { get; set; } = string.Empty;
 
         // Chỉ có với tài khoản sinh viên
-        public HoSoSinhVienDto? SinhVien { get; set; }
+        public StudentProfileVm? SinhVien { get; set; }
     }
 
-    public class HoSoSinhVienDto
+    public class StudentProfileVm
     {
         public string MaSV { get; set; } = string.Empty;
         public string HoTen { get; set; } = string.Empty;
@@ -35,29 +52,28 @@ namespace StudentPortal.Models.ViewModels
 
     // FR-12 Cập nhật thông tin liên hệ: chỉ 3 trường, gửi trường khác bị từ chối (HTTP 400)
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public class CapNhatLienHeDto
+    public class ContactEditVm
     {
-        [RegularExpression(@"^0\d{9}$", ErrorMessage = "Số điện thoại gồm 10 chữ số, bắt đầu bằng 0")]
+        [SoDienThoai]
         public string? SDT { get; set; }
 
-        [StringLength(100, ErrorMessage = "Email tối đa 100 ký tự")]
-        [EmailAddress(ErrorMessage = "Email không đúng định dạng")]
+        [StringLength(100, ErrorMessage = ValidationRules.EmailMessage)]
+        [EmailAddress(ErrorMessage = ValidationRules.EmailMessage)]
         public string? Email { get; set; }
 
-        [StringLength(250, ErrorMessage = "Địa chỉ tối đa 250 ký tự")]
+        [StringLength(255, ErrorMessage = "Địa chỉ tối đa 255 ký tự.")]
         public string? DiaChi { get; set; }
     }
 
     // FR-10 Đổi mật khẩu
     [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
-    public class DoiMatKhauDto
+    public class ChangePasswordVm
     {
         [Required(ErrorMessage = "Vui lòng nhập mật khẩu hiện tại")]
         public string MatKhauHienTai { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Vui lòng nhập mật khẩu mới")]
-        [StringLength(100, MinimumLength = 8, ErrorMessage = "Mật khẩu mới tối thiểu 8 ký tự")]
-        [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).+$", ErrorMessage = "Mật khẩu mới phải gồm cả chữ và số")]
+        [MatKhauManh]
         public string MatKhauMoi { get; set; } = string.Empty;
 
         [Compare(nameof(MatKhauMoi), ErrorMessage = "Xác nhận mật khẩu mới không khớp")]

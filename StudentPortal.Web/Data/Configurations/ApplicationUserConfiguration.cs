@@ -10,13 +10,15 @@ namespace StudentPortal.Data.Configurations
         {
             b.Property(u => u.HoTen).HasMaxLength(100);
             b.Property(u => u.MaSV).HasMaxLength(15).IsUnicode(false);
-            b.Property(u => u.MaKhoaPhuTrach).HasMaxLength(20).IsUnicode(false);
+            b.Property(u => u.MaKhoaPhuTrach).HasMaxLength(15).IsUnicode(false);
+            b.Property(u => u.LyDoKhoa).HasMaxLength(255);
+            b.Property(u => u.NgayTao).HasDefaultValueSql("GETUTCDATE()");
 
             // SinhVien 1 - 0..1 ApplicationUser (UserName = MaSV)
             b.HasOne(u => u.SinhVien)
              .WithOne(s => s.TaiKhoan)
              .HasForeignKey<ApplicationUser>(u => u.MaSV)
-             .OnDelete(DeleteBehavior.SetNull);
+             .OnDelete(DeleteBehavior.Restrict);
 
             // MaSV duy nhất khi khác NULL
             b.HasIndex(u => u.MaSV).IsUnique().HasFilter("[MaSV] IS NOT NULL");

@@ -4,7 +4,7 @@ namespace StudentPortal.Infrastructure.Authorization
     public static class Roles
     {
         public const string Admin = "Admin";
-        public const string CanBo = "GiaoVu";
+        public const string CanBo = "CanBo";
         public const string SinhVien = "SinhVien";
 
         // Dùng cho [Authorize(Roles = ...)]

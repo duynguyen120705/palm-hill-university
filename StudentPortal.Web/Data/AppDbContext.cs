@@ -16,9 +16,7 @@ namespace StudentPortal.Data
         public DbSet<KhoaHoc> KhoaHocs { get; set; } = null!;
         public DbSet<Lop> Lops { get; set; } = null!;
         public DbSet<SinhVien> SinhViens { get; set; } = null!;
-        public DbSet<LichSuHoSoSinhVien> LichSuHoSoSinhViens { get; set; } = null!;
         public DbSet<NhatKyThaoTac> NhatKyThaoTacs { get; set; } = null!;
-        public DbSet<PhienNhap> PhienNhaps { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

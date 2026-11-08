@@ -11,6 +11,6 @@ namespace StudentPortal.Services.Interfaces
     {
         // Trả về null nếu không có dữ liệu để xuất
         Task<FileXuat?> ExportStudentsAsync(StudentFilter filter, bool pdf);
-        Task<FileXuat?> ExportStatisticsAsync(ThongKeFilterDto filter, bool pdf);
+        Task<FileXuat?> ExportStatisticsAsync(StatisticsFilterVm filter, bool pdf);
     }
 }

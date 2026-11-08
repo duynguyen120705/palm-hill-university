@@ -1,37 +1,19 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace StudentPortal.Models.Entities
 {
-    [Table("NHAT_KY_THAO_TAC")]
+    // Nhật ký thao tác nhạy cảm (NFR-07): chỉ thêm, không sửa/xóa qua giao diện
     public class NhatKyThaoTac
     {
-        [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long Id { get; set; }
-
-        [Display(Name = "Thời Điểm")]
         public DateTime ThoiDiem { get; set; } = DateTime.UtcNow;
 
-        [Required(ErrorMessage = "Tên tài khoản không được để trống")]
-        [StringLength(256)]
-        [Display(Name = "Tài Khoản")]
+        // Lưu dạng chuỗi, không khóa ngoại, để giữ nguyên lịch sử
         public string Username { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Hành động không được để trống")]
-        [StringLength(100)]
-        [Display(Name = "Hành Động")]
         public string HanhDong { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Loại đối tượng không được để trống")]
-        [StringLength(100)]
-        [Display(Name = "Loại Đối Tượng")]
         public string DoiTuongLoai { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Mã đối tượng không được để trống")]
-        [StringLength(100)]
-        [Display(Name = "Mã Đối Tượng")]
         public string DoiTuongMa { get; set; } = string.Empty;
+
+        // Thông tin không nhạy cảm: lý do, trạng thái cũ -> mới, tiêu chí xuất, số dòng import
+        public string? ChiTiet { get; set; }
     }
 }
-

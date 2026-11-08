@@ -12,14 +12,11 @@ namespace StudentPortal.Controllers
     {
         private readonly IStatisticsService _statisticsService;
         private readonly IExportService _exportService;
-        private readonly ILogger<StatisticsController> _logger;
 
-        public StatisticsController(IStatisticsService statisticsService, IExportService exportService,
-            ILogger<StatisticsController> logger)
+        public StatisticsController(IStatisticsService statisticsService, IExportService exportService)
         {
             _statisticsService = statisticsService;
             _exportService = exportService;
-            _logger = logger;
         }
 
         // GET: /Statistics
@@ -30,36 +27,16 @@ namespace StudentPortal.Controllers
 
         // GET: /Statistics/Data?maKhoa=&maKhoaHoc=&maLop=&trangThai=
         [HttpGet]
-        public async Task<IActionResult> Data([FromQuery] ThongKeFilterDto filter)
-        {
-            try
-            {
-                var data = await _statisticsService.GetAsync(filter);
-                return Json(new { success = true, data });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi thống kê sinh viên");
-                return StatusCode(500, new { success = false, message = "Lỗi máy chủ khi thống kê." });
-            }
-        }
+        public async Task<IActionResult> Data([FromQuery] StatisticsFilterVm filter) =>
+            Ok(ApiResponse.Ok(await _statisticsService.GetAsync(filter)));
 
         // GET: /Statistics/Export?format=excel|pdf&maKhoa=&maKhoaHoc=&maLop=&trangThai= (FR-29)
         [HttpGet]
-        public async Task<IActionResult> Export([FromQuery] ThongKeFilterDto filter, string format = "excel")
+        public async Task<IActionResult> Export([FromQuery] StatisticsFilterVm filter, string format = "excel")
         {
-            try
-            {
-                var file = await _exportService.ExportStatisticsAsync(filter, format == "pdf");
-                if (file == null)
-                    return BadRequest(new { success = false, message = "Không có dữ liệu thống kê để xuất." });
-                return File(file.NoiDung, file.ContentType, file.TenFile);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi xuất báo cáo thống kê");
-                return StatusCode(500, new { success = false, message = "Lỗi máy chủ khi xuất báo cáo." });
-            }
+            var file = await _exportService.ExportStatisticsAsync(filter, format == "pdf");
+            if (file == null) return BadRequest(ApiResponse.Fail("Không có dữ liệu thống kê để xuất."));
+            return File(file.NoiDung, file.ContentType, file.TenFile);
         }
     }
 }

@@ -1,16 +1,18 @@
+using StudentPortal.Models.Entities;
+
 namespace StudentPortal.Models.ViewModels
 {
     // Tiêu chí thống kê (FR-27), nhận từ query string
-    public class ThongKeFilterDto
+    public class StatisticsFilterVm
     {
         public string? MaKhoa { get; set; }
         public string? MaKhoaHoc { get; set; }
         public string? MaLop { get; set; }
-        public int? TrangThai { get; set; }
+        public TrangThaiHocTap? TrangThai { get; set; }
     }
 
     // Một dòng thống kê: số sinh viên của một lớp theo từng trạng thái
-    public class ThongKeRowDto
+    public class StatisticsRowDto
     {
         public string MaKhoa { get; set; } = string.Empty;
         public string TenKhoa { get; set; } = string.Empty;
@@ -24,13 +26,14 @@ namespace StudentPortal.Models.ViewModels
         public int Tong { get; set; }
     }
 
-    public class ThongKeResultDto
+    public class StatisticsResultDto
     {
-        public List<ThongKeRowDto> Rows { get; set; } = new List<ThongKeRowDto>();
-        public ThongKeRowDto TongCong { get; set; } = new ThongKeRowDto();
+        public List<StatisticsRowDto> Rows { get; set; } = new();
+        public StatisticsRowDto TongCong { get; set; } = new();
     }
 
-    public class LuaChonDto
+    // Một lựa chọn trong dropdown Khoa/Khóa/Lớp
+    public class LookupItemDto
     {
         public string Ma { get; set; } = string.Empty;
         public string Ten { get; set; } = string.Empty;

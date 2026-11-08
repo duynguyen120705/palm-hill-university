@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StudentPortal.Data;
-using StudentPortal.Infrastructure;
+using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
 using StudentPortal.Services.Interfaces;
 
@@ -8,9 +8,6 @@ namespace StudentPortal.Services
 {
     public class StatisticsService : IStatisticsService
     {
-        private const int DangHoc = MaTrangThai.DangHoc, BaoLuu = MaTrangThai.BaoLuu,
-            ThoiHoc = MaTrangThai.ThoiHoc, DaTotNghiep = MaTrangThai.DaTotNghiep;
-
         private readonly AppDbContext _context;
         private readonly IScopeService _scope;
 
@@ -20,7 +17,7 @@ namespace StudentPortal.Services
             _scope = scope;
         }
 
-        public async Task<ThongKeResultDto> GetAsync(ThongKeFilterDto filter)
+        public async Task<StatisticsResultDto> GetAsync(StatisticsFilterVm filter)
         {
             // Áp phạm vi (FR-09) trước khi lọc; global query filter đã loại bản ghi xóa mềm
             var query = _scope.ApplyStudentScope(_context.SinhViens.AsNoTracking());
@@ -37,26 +34,26 @@ namespace StudentPortal.Services
             // GROUP BY tại CSDL, đếm theo từng trạng thái
             var rows = await query
                 .GroupBy(s => new { s.Lop!.MaKhoa, s.Lop.Khoa!.TenKhoa, s.Lop.MaKhoaHoc, s.MaLop, s.Lop.TenLop })
-                .Select(g => new ThongKeRowDto
+                .Select(g => new StatisticsRowDto
                 {
                     MaKhoa = g.Key.MaKhoa,
                     TenKhoa = g.Key.TenKhoa,
                     MaKhoaHoc = g.Key.MaKhoaHoc,
                     MaLop = g.Key.MaLop,
                     TenLop = g.Key.TenLop,
-                    DangHoc = g.Count(s => s.TrangThai == DangHoc),
-                    BaoLuu = g.Count(s => s.TrangThai == BaoLuu),
-                    ThoiHoc = g.Count(s => s.TrangThai == ThoiHoc),
-                    DaTotNghiep = g.Count(s => s.TrangThai == DaTotNghiep),
+                    DangHoc = g.Count(s => s.TrangThai == TrangThaiHocTap.DangHoc),
+                    BaoLuu = g.Count(s => s.TrangThai == TrangThaiHocTap.BaoLuu),
+                    ThoiHoc = g.Count(s => s.TrangThai == TrangThaiHocTap.ThoiHoc),
+                    DaTotNghiep = g.Count(s => s.TrangThai == TrangThaiHocTap.DaTotNghiep),
                     Tong = g.Count()
                 })
                 .OrderBy(r => r.MaKhoa).ThenBy(r => r.MaKhoaHoc).ThenBy(r => r.MaLop)
                 .ToListAsync();
 
-            return new ThongKeResultDto
+            return new StatisticsResultDto
             {
                 Rows = rows,
-                TongCong = new ThongKeRowDto
+                TongCong = new StatisticsRowDto
                 {
                     DangHoc = rows.Sum(r => r.DangHoc),
                     BaoLuu = rows.Sum(r => r.BaoLuu),

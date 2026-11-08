@@ -1,32 +1,25 @@
 namespace StudentPortal.Models.Entities
 {
-    public enum GioiTinh
+    // Lưu trong CSDL dạng tinyint, mã theo mục 3.2.2.1
+
+    public enum GioiTinh : byte
     {
-        Nam = 0,
-        Nu = 1,
-        Khac = 2
+        Nam = 1,
+        Nu = 2,
+        Khac = 3
     }
 
-    public enum TrangThaiSinhVien
+    public enum TrangThaiHocTap : byte
     {
-        DangHoc = 0,
-        BaoLuu = 1,
-        DaTotNghiep = 2,
-        ThoiHoc = 3
+        DangHoc = 1,
+        BaoLuu = 2,
+        DaTotNghiep = 3,
+        ThoiHoc = 4
     }
 
-    public enum TrangThaiTaiKhoan
+    public enum TrangThaiTaiKhoan : byte
     {
-        HoatDong = 0,
-        BiKhoa = 1
-    }
-
-    public enum LoaiLichSuHoSo
-    {
-        DoiTrangThai = 0,
-        ChuyenLop = 1,
-        KhoaTaiKhoan = 2,
-        MoKhoaTaiKhoan = 3
+        HoatDong = 1,
+        BiKhoa = 2 // khóa nghiệp vụ, khác LockoutEnd là khóa tạm do đăng nhập sai
     }
 }
-

@@ -17,7 +17,7 @@ namespace StudentPortal.Services
             _scope = scope;
         }
 
-        public async Task<List<LuaChonDto>> LookupAsync(string type, string? maKhoa, string? maKhoaHoc)
+        public async Task<List<LookupItemDto>> LookupAsync(string type, string? maKhoa, string? maKhoaHoc)
         {
             // Global query filter đã loại danh mục xóa mềm
             switch (type?.ToLowerInvariant())
@@ -30,13 +30,13 @@ namespace StudentPortal.Services
                     return await _context.Khoas.AsNoTracking()
                         .Where(k => scope.IsAdmin || (khoaPhuTrach != null && k.MaKhoa == khoaPhuTrach))
                         .OrderBy(k => k.MaKhoa)
-                        .Select(k => new LuaChonDto { Ma = k.MaKhoa, Ten = k.TenKhoa })
+                        .Select(k => new LookupItemDto { Ma = k.MaKhoa, Ten = k.TenKhoa })
                         .ToListAsync();
                 }
                 case "khoahoc":
                     return await _context.KhoaHocs.AsNoTracking()
                         .OrderBy(kh => kh.NamNhapHoc)
-                        .Select(kh => new LuaChonDto { Ma = kh.MaKhoaHoc, Ten = kh.MaKhoaHoc + " (" + kh.NamNhapHoc + ")" })
+                        .Select(kh => new LookupItemDto { Ma = kh.MaKhoaHoc, Ten = kh.MaKhoaHoc + " (" + kh.NamNhapHoc + ")" })
                         .ToListAsync();
                 case "lop":
                 {
@@ -45,7 +45,7 @@ namespace StudentPortal.Services
                     if (!string.IsNullOrWhiteSpace(maKhoaHoc)) query = query.Where(l => l.MaKhoaHoc == maKhoaHoc);
                     return await query
                         .OrderBy(l => l.MaLop)
-                        .Select(l => new LuaChonDto { Ma = l.MaLop, Ten = l.TenLop, MaKhoa = l.MaKhoa, MaKhoaHoc = l.MaKhoaHoc })
+                        .Select(l => new LookupItemDto { Ma = l.MaLop, Ten = l.TenLop, MaKhoa = l.MaKhoa, MaKhoaHoc = l.MaKhoaHoc })
                         .ToListAsync();
                 }
                 default:

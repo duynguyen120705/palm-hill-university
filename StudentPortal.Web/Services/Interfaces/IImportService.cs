@@ -9,9 +9,6 @@ namespace StudentPortal.Services.Interfaces
         byte[] CreateTemplate();
 
         // File chỉ đọc trong bộ nhớ; InvalidDataException khi sai mẫu
-        Task<KetQuaNhapDto> ImportAsync(Stream file, string tenFile);
-
-        Task<PagedResultDto<PhienNhapItemDto>> ListSessionsAsync(int page, int pageSize);
-        Task DeleteSessionAsync(long id);
+        Task<ImportResultDto> ImportAsync(Stream file, string tenFile);
     }
 }

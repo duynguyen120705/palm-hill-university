@@ -1,4 +1,5 @@
 using StudentPortal.Infrastructure.Authorization;
+using StudentPortal.Models.ViewModels;
 
 namespace StudentPortal.Infrastructure
 {
@@ -45,7 +46,7 @@ namespace StudentPortal.Infrastructure
         {
             context.Response.Clear();
             context.Response.StatusCode = statusCode;
-            return context.Response.WriteAsJsonAsync(new { success = false, message });
+            return context.Response.WriteAsJsonAsync(ApiResponse.Fail(message));
         }
     }
 }

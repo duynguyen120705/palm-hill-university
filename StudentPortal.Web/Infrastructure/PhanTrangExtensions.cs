@@ -6,15 +6,17 @@ namespace StudentPortal.Infrastructure
 {
     public static class PhanTrangExtensions
     {
+        // Mục 3.2.1.5: pageSize mặc định 20, tối đa 100
+        public const int PageSizeMacDinh = 20;
         public const int PageSizeToiDa = 100;
 
-        // Phân trang tại CSDL bằng Skip/Take (SQL Server: OFFSET ... FETCH NEXT ...)
-        // query phải đã được OrderBy để kết quả giữa các trang ổn định;
+        // Phân trang tại CSDL bằng Skip/Take; query phải đã được OrderBy để kết quả giữa các trang ổn định;
         // selector áp dụng sau Skip/Take nên được phép chứa phần định dạng chạy ở client
-        public static async Task<PagedResultDto<TResult>> ToPagedResultAsync<TSource, TResult>(
+        public static async Task<PagedResult<TResult>> ToPagedResultAsync<TSource, TResult>(
             this IQueryable<TSource> query, int page, int pageSize, Expression<Func<TSource, TResult>> selector)
         {
-            if (pageSize < 1 || pageSize > PageSizeToiDa) pageSize = 10;
+            if (pageSize < 1) pageSize = PageSizeMacDinh;
+            if (pageSize > PageSizeToiDa) pageSize = PageSizeToiDa;
 
             var totalItems = await query.CountAsync();
             var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
@@ -26,11 +28,10 @@ namespace StudentPortal.Infrastructure
                 .Select(selector)
                 .ToListAsync();
 
-            return new PagedResultDto<TResult>
+            return new PagedResult<TResult>
             {
-                Success = true,
                 Items = items,
-                PageIndex = page,
+                Page = page,
                 PageSize = pageSize,
                 TotalItems = totalItems,
                 TotalPages = totalPages

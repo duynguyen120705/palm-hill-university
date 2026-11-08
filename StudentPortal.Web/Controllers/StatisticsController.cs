@@ -25,12 +25,12 @@ namespace StudentPortal.Controllers
             return View();
         }
 
-        // GET: /Statistics/Data?maKhoa=&maKhoaHoc=&maLop=&trangThai=
+        // GET: /Statistics/Data?nhomTheo=khoa|khoahoc|lop&maKhoa=&maKhoaHoc=&maLop=&trangThai=
         [HttpGet]
         public async Task<IActionResult> Data([FromQuery] StatisticsFilterVm filter) =>
             Ok(ApiResponse.Ok(await _statisticsService.GetAsync(filter)));
 
-        // GET: /Statistics/Export?format=excel|pdf&maKhoa=&maKhoaHoc=&maLop=&trangThai= (FR-29)
+        // GET: /Statistics/Export?format=excel|pdf&nhomTheo=&maKhoa=&maKhoaHoc=&maLop=&trangThai= (FR-29)
         [HttpGet]
         public async Task<IActionResult> Export([FromQuery] StatisticsFilterVm filter, string format = "excel")
         {

@@ -65,8 +65,10 @@
         tbody.replaceChildren();
         if (!items.length) {
             const tr = document.createElement('tr');
-            const td = cell('Không tìm thấy sinh viên phù hợp.', 'text-center text-muted py-4');
-            td.colSpan = 9;
+            // UC18 4a khi có từ khóa, UC17 5a khi chỉ lọc
+            const thongBao = txtKeyword.value.trim() ? 'Không tìm thấy sinh viên phù hợp' : 'Không có dữ liệu';
+            const td = cell(thongBao, 'text-center text-muted py-4');
+            td.colSpan = 7;
             tr.appendChild(td);
             tbody.appendChild(tr);
             return;
@@ -77,11 +79,9 @@
                 cell(sv.maSV, 'fw-semibold'),
                 cell(sv.hoTen),
                 cell(sv.ngaySinhFormatted),
-                cell(sv.gioiTinhText),
-                cell(sv.tenLop + ' (' + sv.maLop + ')'),
-                cell(sv.sdt),
-                cell(sv.email),
+                cell(sv.maLop),
                 cell(sv.trangThaiText),
+                cell(sv.trangThaiTaiKhoanText),
                 tdXem(sv.maSV)
             );
             tbody.appendChild(tr);
@@ -91,8 +91,12 @@
     function loadPage(page) {
         const seq = ++requestSeq;
         const params = filterParams();
+
+        // UC18: giữ từ khóa, bộ lọc trên URL để có thể quay lại
+        const query = params.toString();
+        history.replaceState(null, '', location.pathname + (query ? '?' + query : ''));
+
         params.set('page', page || 1);
-        params.set('pageSize', document.getElementById('selPageSize').value);
 
         status.textContent = 'Đang tải...';
         App.get('/Students/Search?' + params.toString()).then(function (res) {
@@ -110,8 +114,9 @@
     function xuat(format) {
         const params = filterParams();
         params.set('format', format);
-        App.download('/Students/Export?' + params.toString(), function (msg) {
+        App.download('/Students/Export?' + params.toString(), function (msg, laLoi) {
             status.textContent = msg;
+            if (laLoi) App.toast(msg, 'danger');
         });
     }
 
@@ -122,12 +127,23 @@
     });
     selKhoa.addEventListener('change', function () { refreshLopOptions(); loadPage(1); });
     selKhoaHoc.addEventListener('change', function () { refreshLopOptions(); loadPage(1); });
-    ['selLop', 'selTrangThai', 'selPageSize'].forEach(function (id) {
+    ['selLop', 'selTrangThai'].forEach(function (id) {
         document.getElementById(id).addEventListener('change', function () { loadPage(1); });
     });
     form.addEventListener('submit', function (e) { e.preventDefault(); loadPage(1); });
     document.getElementById('btnXuatExcel').addEventListener('click', function () { xuat('excel'); });
     document.getElementById('btnXuatPdf').addEventListener('click', function () { xuat('pdf'); });
+
+    // Khôi phục tiêu chí từ URL; giá trị ngoài danh sách lựa chọn thì bỏ qua
+    const urlBanDau = new URLSearchParams(location.search);
+
+    function chonTuUrl(select, ten) {
+        const giaTri = urlBanDau.get(ten);
+        if (Array.from(select.options).some(function (o) { return o.value === giaTri; })) select.value = giaTri;
+    }
+
+    txtKeyword.value = urlBanDau.get('keyword') || '';
+    chonTuUrl(document.getElementById('selTrangThai'), 'trangThai');
 
     App.loadFilters()
         .then(function (data) {
@@ -136,10 +152,14 @@
             fillSelect(csKhoa, data.khoas);
             fillSelect(csKhoaHoc, data.khoaHocs);
             allLops = data.lops;
+            chonTuUrl(selKhoa, 'maKhoa');
+            chonTuUrl(selKhoaHoc, 'maKhoaHoc');
             refreshLopOptions();
+            chonTuUrl(selLop, 'maLop');
             refreshLopThem();
         })
-        .catch(function () { status.textContent = 'Không tải được bộ lọc.'; });
+        .catch(function () { status.textContent = 'Không tải được bộ lọc.'; })
+        .then(function () { loadPage(1); });
 
     // ===================== FR-13 Thêm hồ sơ sinh viên =====================
 
@@ -204,6 +224,4 @@
             $btn.prop('disabled', false);
         });
     });
-
-    loadPage(1);
 })();

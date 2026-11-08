@@ -9,8 +9,12 @@
     const tbody = document.getElementById('tkBody');
     const tfoot = document.getElementById('tkFoot');
     const status = document.getElementById('tkStatus');
+    const btnExcel = document.getElementById('btnXuatExcel');
+    const btnPdf = document.getElementById('btnXuatPdf');
 
     let allLops = [];
+    let requestSeq = 0;      // chỉ hiển thị phản hồi của request mới nhất
+    let tieuChiDaXem = null; // tiêu chí của kết quả đang hiển thị, dùng khi xuất file
 
     // Tạo ô bảng bằng textContent để tránh XSS
     function cell(text, className) {
@@ -41,42 +45,35 @@
         if (lops.some(function (l) { return l.ma === current; })) selLop.value = current;
     }
 
+    function dongSoLieu(ten, r, tenClass) {
+        const tr = document.createElement('tr');
+        tr.append(
+            cell(ten, tenClass),
+            cell(r.dangHoc, 'text-end'),
+            cell(r.baoLuu, 'text-end'),
+            cell(r.daTotNghiep, 'text-end'),
+            cell(r.thoiHoc, 'text-end'),
+            cell(r.tong, 'text-end fw-semibold')
+        );
+        return tr;
+    }
+
     function renderTable(data) {
+        document.getElementById('thNhom').textContent = data.tenNhom;
         tbody.replaceChildren();
         tfoot.replaceChildren();
 
         if (data.rows.length === 0) {
             const tr = document.createElement('tr');
             const td = cell('Không có sinh viên phù hợp với tiêu chí đã chọn.', 'text-center text-muted py-4');
-            td.colSpan = 8;
+            td.colSpan = 6;
             tr.appendChild(td);
             tbody.appendChild(tr);
+            return;
         }
 
-        data.rows.forEach(function (r) {
-            const tr = document.createElement('tr');
-            tr.appendChild(cell(r.tenKhoa));
-            tr.appendChild(cell(r.maKhoaHoc));
-            tr.appendChild(cell(r.tenLop + ' (' + r.maLop + ')'));
-            tr.appendChild(cell(r.dangHoc, 'text-end'));
-            tr.appendChild(cell(r.baoLuu, 'text-end'));
-            tr.appendChild(cell(r.daTotNghiep, 'text-end'));
-            tr.appendChild(cell(r.thoiHoc, 'text-end'));
-            tr.appendChild(cell(r.tong, 'text-end fw-semibold'));
-            tbody.appendChild(tr);
-        });
-
-        const t = data.tongCong;
-        const tr = document.createElement('tr');
-        const label = cell('Tổng cộng (' + data.rows.length + ' lớp)');
-        label.colSpan = 3;
-        tr.appendChild(label);
-        tr.appendChild(cell(t.dangHoc, 'text-end'));
-        tr.appendChild(cell(t.baoLuu, 'text-end'));
-        tr.appendChild(cell(t.daTotNghiep, 'text-end'));
-        tr.appendChild(cell(t.thoiHoc, 'text-end'));
-        tr.appendChild(cell(t.tong, 'text-end'));
-        tfoot.appendChild(tr);
+        data.rows.forEach(function (r) { tbody.appendChild(dongSoLieu(r.ten, r)); });
+        tfoot.appendChild(dongSoLieu('Tổng cộng', data.tongCong));
     }
 
     function filterParams() {
@@ -87,50 +84,54 @@
         return params;
     }
 
-    // FR-29: xuất đúng tiêu chí đang chọn
+    function capNhatNutXuat(coDuLieu) {
+        btnExcel.disabled = !coDuLieu;
+        btnPdf.disabled = !coDuLieu;
+    }
+
+    // FR-29: xuất đúng tiêu chí của kết quả đang hiển thị
     function xuat(format) {
-        const params = filterParams();
+        if (!tieuChiDaXem) return;
+        const params = new URLSearchParams(tieuChiDaXem);
         params.set('format', format);
-        App.download('/Statistics/Export?' + params.toString(), function (msg) {
+        App.download('/Statistics/Export?' + params.toString(), function (msg, laLoi) {
             status.textContent = msg;
+            if (laLoi) App.toast(msg, 'danger');
         });
     }
 
     function loadThongKe() {
+        const seq = ++requestSeq;
+        const tieuChi = filterParams().toString();
         status.textContent = 'Đang tải thống kê...';
-        const started = performance.now();
 
-        App.get('/Statistics/Data?' + filterParams().toString()).then(function (res) {
+        App.get('/Statistics/Data?' + tieuChi).then(function (res) {
+            if (seq !== requestSeq) return;
             renderTable(res.data);
-            status.textContent = 'Cập nhật lúc ' + new Date().toLocaleTimeString('vi-VN') +
-                ' (' + Math.round(performance.now() - started) + ' ms)';
+            const coDuLieu = res.data.rows.length > 0;
+            tieuChiDaXem = coDuLieu ? tieuChi : null;
+            capNhatNutXuat(coDuLieu);
+            status.textContent = 'Cập nhật lúc ' + new Date().toLocaleTimeString('vi-VN');
         }).catch(function (err) {
-            status.textContent = err.message;
+            if (seq === requestSeq) status.textContent = err.message;
         });
     }
 
-    function loadBoLoc() {
-        App.loadFilters().then(function (data) {
-            fillSelect(selKhoa, data.khoas);
-            fillSelect(selKhoaHoc, data.khoaHocs);
-            allLops = data.lops;
-            refreshLopOptions();
-        }).catch(function () {
-            status.textContent = 'Không tải được bộ lọc.';
-        });
-    }
-
-    selKhoa.addEventListener('change', function () { refreshLopOptions(); loadThongKe(); });
-    selKhoaHoc.addEventListener('change', function () { refreshLopOptions(); loadThongKe(); });
-    selLop.addEventListener('change', loadThongKe);
-    document.getElementById('selTrangThai').addEventListener('change', loadThongKe);
-    document.getElementById('btnXuatExcel').addEventListener('click', function () { xuat('excel'); });
-    document.getElementById('btnXuatPdf').addEventListener('click', function () { xuat('pdf'); });
+    selKhoa.addEventListener('change', refreshLopOptions);
+    selKhoaHoc.addEventListener('change', refreshLopOptions);
+    btnExcel.addEventListener('click', function () { xuat('excel'); });
+    btnPdf.addEventListener('click', function () { xuat('pdf'); });
     form.addEventListener('submit', function (e) {
         e.preventDefault();
         loadThongKe();
     });
 
-    loadBoLoc();
-    loadThongKe();
+    App.loadFilters().then(function (data) {
+        fillSelect(selKhoa, data.khoas);
+        fillSelect(selKhoaHoc, data.khoaHocs);
+        allLops = data.lops;
+        refreshLopOptions();
+    }).catch(function () {
+        status.textContent = 'Không tải được bộ lọc.';
+    });
 })();

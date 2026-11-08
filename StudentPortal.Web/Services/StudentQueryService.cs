@@ -26,9 +26,8 @@ namespace StudentPortal.Services
             // Không phân biệt hoa thường và dấu: chuẩn hóa từ khóa rồi tìm theo HoTenKhongDau (FR-22)
             if (!string.IsNullOrWhiteSpace(filter.Keyword))
             {
-                var kw = filter.Keyword.Trim();
-                var kwKhongDau = TextHelper.BoDau(kw);
-                query = query.Where(s => s.HoTenKhongDau.Contains(kwKhongDau) || s.MaSV.Contains(kw));
+                var kwKhongDau = TextHelper.BoDau(filter.Keyword);
+                query = query.Where(s => s.HoTenKhongDau.Contains(kwKhongDau) || s.MaSV.Contains(kwKhongDau));
             }
 
             if (!string.IsNullOrWhiteSpace(filter.MaKhoa))
@@ -52,14 +51,10 @@ namespace StudentPortal.Services
                     MaSV = s.MaSV,
                     HoTen = s.HoTen,
                     NgaySinhFormatted = s.NgaySinh.ToString("dd/MM/yyyy"),
-                    GioiTinh = s.GioiTinh,
-                    GioiTinhText = s.GioiTinh.TenHienThi(),
                     MaLop = s.MaLop,
-                    TenLop = s.Lop!.TenLop,
-                    SDT = s.SDT,
-                    Email = s.Email,
                     TrangThai = s.TrangThai,
-                    TrangThaiText = s.TrangThai.TenHienThi()
+                    TrangThaiText = s.TrangThai.TenHienThi(),
+                    TrangThaiTaiKhoanText = s.TaiKhoan != null ? s.TaiKhoan.TrangThaiTaiKhoan.TenHienThi() : "Chưa có tài khoản"
                 });
         }
     }

@@ -2,8 +2,8 @@ using StudentPortal.Models.Entities;
 
 namespace StudentPortal.Models.ViewModels
 {
-    // Tiêu chí thống kê (FR-27), nhận từ query string
-    public class StatisticsFilterVm
+    // Tiêu chí lọc chung của danh sách và thống kê, nhận từ query string
+    public class BoLocSinhVienVm
     {
         public string? MaKhoa { get; set; }
         public string? MaKhoaHoc { get; set; }
@@ -11,14 +11,24 @@ namespace StudentPortal.Models.ViewModels
         public TrangThaiHocTap? TrangThai { get; set; }
     }
 
-    // Một dòng thống kê: số sinh viên của một lớp theo từng trạng thái
+    // Giá trị của lựa chọn "Nhóm theo" (UC20)
+    public static class NhomThongKe
+    {
+        public const string Khoa = "khoa";
+        public const string KhoaHoc = "khoahoc";
+        public const string Lop = "lop";
+    }
+
+    // Tiêu chí thống kê (FR-27)
+    public class StatisticsFilterVm : BoLocSinhVienVm
+    {
+        public string NhomTheo { get; set; } = NhomThongKe.Lop;
+    }
+
+    // Một dòng thống kê: số sinh viên của một nhóm theo từng trạng thái
     public class StatisticsRowDto
     {
-        public string MaKhoa { get; set; } = string.Empty;
-        public string TenKhoa { get; set; } = string.Empty;
-        public string MaKhoaHoc { get; set; } = string.Empty;
-        public string MaLop { get; set; } = string.Empty;
-        public string TenLop { get; set; } = string.Empty;
+        public string Ten { get; set; } = string.Empty;
         public int DangHoc { get; set; }
         public int BaoLuu { get; set; }
         public int ThoiHoc { get; set; }
@@ -28,6 +38,8 @@ namespace StudentPortal.Models.ViewModels
 
     public class StatisticsResultDto
     {
+        // Tên cột nhóm: Khoa, Khóa hoặc Lớp
+        public string TenNhom { get; set; } = string.Empty;
         public List<StatisticsRowDto> Rows { get; set; } = new();
         public StatisticsRowDto TongCong { get; set; } = new();
     }

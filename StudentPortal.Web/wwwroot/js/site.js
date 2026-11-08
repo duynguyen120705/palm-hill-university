@@ -181,6 +181,33 @@
 
         renderPaging: renderPaging,
 
+        // Hiển thị lỗi server tại đúng trường của form (span data-valmsg-for); lỗi không có trường thì trả về false
+        showFieldErrors: function ($form, errors) {
+            let daHienThi = false;
+            Object.keys(errors || {}).forEach(function (truong) {
+                const $span = $form.find('[data-valmsg-for]').filter(function () {
+                    return this.getAttribute('data-valmsg-for').toLowerCase() === truong.toLowerCase();
+                });
+                if ($span.length) {
+                    $span.removeClass('field-validation-valid').addClass('field-validation-error').text(errors[truong].join(' '));
+                    daHienThi = true;
+                }
+            });
+            return daHienThi;
+        },
+
+        clearFormErrors: function ($form) {
+            $form.find('[data-valmsg-for]').removeClass('field-validation-error').addClass('field-validation-valid').text('');
+            $form.find('.loi-modal').addClass('d-none').text('');
+            const validator = $form.data('validator');
+            if (validator) validator.resetForm();
+        },
+
+        // Thông báo hiển thị ở trang kế tiếp sau khi chuyển trang
+        flash: function (message) {
+            try { sessionStorage.setItem('appFlash', message); } catch (e) { /* trình duyệt chặn lưu trữ */ }
+        },
+
         // Tải file xuất (FR-28, FR-29): lỗi trả về JSON thì hiện thông báo thay vì tải file hỏng
         download: async function (url, onMessage) {
             onMessage('Đang tạo file...');
@@ -227,6 +254,16 @@
             });
         }
     };
+
+    $(function () {
+        try {
+            const flash = sessionStorage.getItem('appFlash');
+            if (flash) {
+                sessionStorage.removeItem('appFlash');
+                App.toast(flash);
+            }
+        } catch (e) { /* trình duyệt chặn lưu trữ */ }
+    });
 
     // Adapter jQuery Validation cho [NgaySinh]; chỉ đăng ký ở trang có nạp _ValidationScriptsPartial
     $(function () {

@@ -101,6 +101,7 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // Dịch vụ nghiệp vụ
 builder.Services.AddScoped<ICatalogService, CatalogService>();
+builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<IStudentQueryService, StudentQueryService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IExportService, ExportService>();

@@ -3,6 +3,7 @@
     ViewData["Title"] = "Hồ sơ cá nhân";
     var tenVaiTro = Roles.TenHienThi(Model.VaiTro);
     var sv = Model.SinhVien;
+    var lh = new ContactEditVm { SDT = sv?.SDT, Email = sv?.Email, DiaChi = sv?.DiaChi };
 }
 
 
@@ -54,25 +55,12 @@
                         </dl>
 
                         <h6 class="border-top pt-3">Thông tin liên hệ</h6>
-                        <div id="lhMessage" class="alert d-none" role="status"></div>
-                        <form id="formLienHe" class="row g-2" novalidate>
-                            <div class="col-12 col-md-6">
-                                <label for="lhSdt" class="form-label">Số điện thoại</label>
-                                <input type="tel" id="lhSdt" class="form-control" maxlength="10" value="@sv.SDT" placeholder="0xxxxxxxxx" />
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label for="lhEmail" class="form-label">Email</label>
-                                <input type="email" id="lhEmail" class="form-control" maxlength="100" value="@sv.Email" />
-                            </div>
-                            <div class="col-12">
-                                <label for="lhDiaChi" class="form-label">Địa chỉ</label>
-                                <input type="text" id="lhDiaChi" class="form-control" maxlength="255" value="@sv.DiaChi" />
-                            </div>
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Cập nhật</button>
-                                <span class="form-text ms-2">Các thông tin khác do Admin/Giáo vụ quản lý.</span>
-                            </div>
-                        </form>
+                        <dl class="row mb-3">
+                            <dt class="col-5 col-md-4">Số điện thoại</dt><dd class="col-7 col-md-8" data-lien-he="sdt">@(sv.SDT ?? "—")</dd>
+                            <dt class="col-5 col-md-4">Email</dt><dd class="col-7 col-md-8 text-break" data-lien-he="email">@(sv.Email ?? "—")</dd>
+                            <dt class="col-5 col-md-4">Địa chỉ</dt><dd class="col-7 col-md-8" data-lien-he="diaChi">@(sv.DiaChi ?? "—")</dd>
+                        </dl>
+                        <button type="button" id="btnCapNhatLienHe" class="btn btn-primary"><i class="bi bi-pencil me-1"></i>Cập nhật</button>
                     }
                 </div>
             </div>
@@ -80,6 +68,44 @@
     }
 </div>
 
+@if (sv != null)
+{
+    @* FR-12 Cập nhật thông tin liên hệ *@
+    <div class="modal fade" id="modalLienHe" tabindex="-1" aria-labelledby="modalLienHeTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="formLienHe" class="modal-content" novalidate>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalLienHeTitle">Cập nhật thông tin liên hệ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none loi-modal" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="lhSdt" class="form-label">Số điện thoại</label>
+                        <input asp-for="@lh.SDT" id="lhSdt" type="tel" class="form-control" maxlength="10" placeholder="0xxxxxxxxx" />
+                        <span asp-validation-for="@lh.SDT" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="lhEmail" class="form-label">Email</label>
+                        <input asp-for="@lh.Email" id="lhEmail" type="email" class="form-control" maxlength="100" />
+                        <span asp-validation-for="@lh.Email" class="text-danger small"></span>
+                    </div>
+                    <div>
+                        <label for="lhDiaChi" class="form-label">Địa chỉ</label>
+                        <input asp-for="@lh.DiaChi" id="lhDiaChi" type="text" class="form-control" maxlength="255" />
+                        <span asp-validation-for="@lh.DiaChi" class="text-danger small"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
 @section Scripts {
+    <partial name="_ValidationScriptsPartial" />
     <script src="~/js/pages/profile.js" asp-append-version="true"></script>
 }

@@ -54,7 +54,7 @@ namespace StudentPortal.Services
                 var maKhoa = await KiemTraVaiTroVaKhoaAsync(dto.VaiTro, dto.MaKhoaPhuTrach);
                 var userName = dto.UserName.Trim();
                 if (await _userManager.FindByNameAsync(userName) != null)
-                    throw new NghiepVuException($"Tên đăng nhập '{userName}' đã tồn tại.", StatusCodes.Status409Conflict);
+                    throw new NghiepVuException($"Tên đăng nhập '{userName}' đã tồn tại.", StatusCodes.Status409Conflict) { Truong = nameof(StaffCreateDto.UserName) };
 
                 var user = new ApplicationUser
                 {
@@ -122,9 +122,9 @@ namespace StudentPortal.Services
                     ?? throw new NghiepVuException("Phiên đăng nhập không hợp lệ.", StatusCodes.Status401Unauthorized);
 
                 if (!await _userManager.CheckPasswordAsync(user, current))
-                    throw new NghiepVuException("Mật khẩu hiện tại không đúng.");
+                    throw new NghiepVuException("Mật khẩu hiện tại không đúng.") { Truong = nameof(ChangePasswordVm.MatKhauHienTai) };
                 if (newPwd == current)
-                    throw new NghiepVuException("Mật khẩu mới phải khác mật khẩu hiện tại.");
+                    throw new NghiepVuException("Mật khẩu mới phải khác mật khẩu hiện tại.") { Truong = nameof(ChangePasswordVm.MatKhauMoi) };
 
                 // ChangePasswordAsync kiểm tra chính sách mật khẩu, lưu hash và đổi SecurityStamp
                 KiemTraIdentity(await _userManager.ChangePasswordAsync(user, current, newPwd));
@@ -273,7 +273,7 @@ namespace StudentPortal.Services
             }
             catch (NghiepVuException ex) when (ex.StatusCode is StatusCodes.Status400BadRequest or StatusCodes.Status409Conflict)
             {
-                return Result.Fail(ex.Message, ex.StatusCode);
+                return Result.Fail(ex.Message, ex.StatusCode, ex.Truong);
             }
         }
 
@@ -308,14 +308,14 @@ namespace StudentPortal.Services
         private async Task<string?> KiemTraVaiTroVaKhoaAsync(string vaiTro, string? maKhoa)
         {
             if (vaiTro != Roles.Admin && vaiTro != Roles.CanBo)
-                throw new NghiepVuException("Vai trò phải là Admin hoặc Giáo vụ.");
+                throw new NghiepVuException("Vai trò phải là Admin hoặc Giáo vụ.") { Truong = nameof(StaffCreateDto.VaiTro) };
             if (vaiTro == Roles.Admin) return null;
 
             if (string.IsNullOrWhiteSpace(maKhoa))
-                throw new NghiepVuException("Giáo vụ bắt buộc có khoa phụ trách.");
+                throw new NghiepVuException("Giáo vụ bắt buộc có khoa phụ trách.") { Truong = nameof(StaffCreateDto.MaKhoaPhuTrach) };
             // Global query filter đã loại khoa xóa mềm
             if (!await _context.Khoas.AnyAsync(k => k.MaKhoa == maKhoa))
-                throw new NghiepVuException($"Khoa '{maKhoa}' không tồn tại hoặc đã ngừng sử dụng.");
+                throw new NghiepVuException($"Khoa '{maKhoa}' không tồn tại hoặc đã ngừng sử dụng.") { Truong = nameof(StaffCreateDto.MaKhoaPhuTrach) };
             return maKhoa;
         }
 

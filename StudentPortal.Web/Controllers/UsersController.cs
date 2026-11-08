@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using StudentPortal.Infrastructure;
 using StudentPortal.Infrastructure.Authorization;
 using StudentPortal.Models.ViewModels;
 using StudentPortal.Services.Interfaces;
@@ -11,10 +13,12 @@ namespace StudentPortal.Controllers
     public class UsersController : Controller
     {
         private readonly IAccountService _accountService;
+        private readonly ICatalogService _catalogService;
 
-        public UsersController(IAccountService accountService)
+        public UsersController(IAccountService accountService, ICatalogService catalogService)
         {
             _accountService = accountService;
+            _catalogService = catalogService;
         }
 
         // GET: /Users
@@ -28,21 +32,85 @@ namespace StudentPortal.Controllers
         public async Task<IActionResult> List([FromQuery] UserFilterVm filter) =>
             Ok(ApiResponse.Ok(await _accountService.ListStaffAsync(filter)));
 
-        // POST: /Users/Create (Ajax, JSON) - FR-02
-        [HttpPost]
-        public async Task<IActionResult> Create([FromBody] StaffCreateDto dto)
+        // GET: /Users/Create (FR-02)
+        [HttpGet]
+        public async Task<IActionResult> Create()
         {
-            (await _accountService.CreateStaffAccountAsync(dto)).ThrowIfFailed();
-            return Ok(ApiResponse.Ok(message: $"Đã tạo tài khoản '{dto.UserName.Trim()}'."));
+            await NapDanhSachKhoaAsync();
+            return View(new StaffCreateDto());
         }
 
-        // POST: /Users/Edit (Ajax, JSON) - FR-03
+        // POST: /Users/Create - lỗi báo tại trường, giữ nguyên biểu mẫu (UC06 6a)
         [HttpPost]
-        public async Task<IActionResult> Edit([FromBody] StaffEditVm dto)
+        public async Task<IActionResult> Create(StaffCreateDto dto)
         {
-            await _accountService.UpdateStaffAsync(dto);
-            var data = await _accountService.GetStaffAsync(dto.Id);
-            return Ok(ApiResponse.Ok(data, $"Đã cập nhật tài khoản '{data.UserName}'."));
+            if (ModelState.IsValid)
+            {
+                var ketQua = await _accountService.CreateStaffAccountAsync(dto);
+                if (ketQua.Succeeded)
+                {
+                    TempData["ThongBao"] = $"Đã tạo tài khoản '{dto.UserName.Trim()}'.";
+                    return RedirectToAction(nameof(Index));
+                }
+                ModelState.AddModelError(ketQua.Truong ?? string.Empty, ketQua.Error!);
+            }
+
+            await NapDanhSachKhoaAsync();
+            return View(dto);
+        }
+
+        // GET: /Users/Edit/{id} (FR-03)
+        [HttpGet]
+        public async Task<IActionResult> Edit(string id)
+        {
+            try
+            {
+                var taiKhoan = await _accountService.GetStaffAsync(id);
+                ViewData["UserName"] = taiKhoan.UserName;
+                await NapDanhSachKhoaAsync();
+                return View(new StaffEditVm
+                {
+                    Id = taiKhoan.Id,
+                    HoTen = taiKhoan.HoTen ?? string.Empty,
+                    VaiTro = taiKhoan.VaiTro,
+                    MaKhoaPhuTrach = taiKhoan.MaKhoaPhuTrach
+                });
+            }
+            catch (NghiepVuException ex) when (ex.StatusCode == StatusCodes.Status404NotFound)
+            {
+                return KhongTimThay(ex.Message);
+            }
+        }
+
+        // POST: /Users/Edit/{id}
+        [HttpPost]
+        public async Task<IActionResult> Edit(StaffEditVm dto)
+        {
+            try
+            {
+                var taiKhoan = await _accountService.GetStaffAsync(dto.Id);
+                if (ModelState.IsValid)
+                {
+                    try
+                    {
+                        await _accountService.UpdateStaffAsync(dto);
+                        TempData["ThongBao"] = $"Đã cập nhật tài khoản '{taiKhoan.UserName}'.";
+                        return RedirectToAction(nameof(Index));
+                    }
+                    catch (NghiepVuException ex) when (ex.StatusCode != StatusCodes.Status404NotFound)
+                    {
+                        ModelState.AddModelError(ex.Truong ?? string.Empty, ex.Message);
+                    }
+                }
+
+                ViewData["UserName"] = taiKhoan.UserName;
+                await NapDanhSachKhoaAsync();
+                return View(dto);
+            }
+            catch (NghiepVuException ex) when (ex.StatusCode == StatusCodes.Status404NotFound)
+            {
+                return KhongTimThay(ex.Message);
+            }
         }
 
         // POST: /Users/ResetPassword (Ajax, JSON) - FR-04
@@ -63,6 +131,17 @@ namespace StudentPortal.Controllers
             var data = await _accountService.GetStaffAsync(dto.Id);
             var hanhDong = dto.Khoa ? "khóa" : "mở khóa";
             return Ok(ApiResponse.Ok(data, $"Đã {hanhDong} tài khoản '{data.UserName}'."));
+        }
+
+        private async Task NapDanhSachKhoaAsync() =>
+            ViewData["Khoas"] = new SelectList(await _catalogService.LookupAsync("khoa", null, null),
+                nameof(LookupItemDto.Ma), nameof(LookupItemDto.Ten));
+
+        private ViewResult KhongTimThay(string thongBao)
+        {
+            Response.StatusCode = StatusCodes.Status404NotFound;
+            ViewData["ThongBao"] = thongBao;
+            return View("NotFound");
         }
     }
 }

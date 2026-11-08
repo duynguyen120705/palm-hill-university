@@ -163,7 +163,7 @@
             let daHienThi = false;
             Object.keys(errors || {}).forEach(function (truong) {
                 const $span = $form.find('[data-valmsg-for]').filter(function () {
-                    return this.getAttribute('data-valmsg-for').toLowerCase() === truong.toLowerCase();
+                    return this.getAttribute('data-valmsg-for').split('.').pop().toLowerCase() === truong.toLowerCase();
                 });
                 if ($span.length) {
                     $span.removeClass('field-validation-valid').addClass('field-validation-error').text(errors[truong].join(' '));
@@ -240,6 +240,10 @@
                 App.toast(flash);
             }
         } catch (e) { /* trình duyệt chặn lưu trữ */ }
+
+        // Thông báo từ server sau khi chuyển trang (TempData)
+        const thongBao = document.getElementById('thongBaoServer');
+        if (thongBao) App.toast(thongBao.dataset.noiDung);
     });
 
     // Adapter jQuery Validation cho [NgaySinh]; chỉ đăng ký ở trang có nạp _ValidationScriptsPartial

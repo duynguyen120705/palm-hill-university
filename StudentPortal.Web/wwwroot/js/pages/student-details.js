@@ -120,6 +120,7 @@ $(function () {
 
     $('#formChuyenLop').on('submit', function (e) {
         e.preventDefault();
+        if (!$(this).valid()) return;
         guiForm($(this), 'modalChuyenLop', '/Students/Transfer', {
             maSV: sv.maSV,
             maLopDich: $('#clLop').val(),
@@ -137,6 +138,7 @@ $(function () {
 
     $('#formMatKhau').on('submit', function (e) {
         e.preventDefault();
+        if (!$(this).valid()) return;
         guiForm($(this), 'modalMatKhau', '/Students/ResetPassword', {
             maSV: sv.maSV,
             matKhauMoi: $('#mkMoi').val(),
@@ -165,6 +167,7 @@ $(function () {
     $('#formLyDo').on('submit', function (e) {
         e.preventDefault();
         const $f = $(this);
+        if (!$f.valid()) return;
         const lyDo = $('#ldNoiDung').val().trim();
 
         if (hanhDong === 'xoa') {

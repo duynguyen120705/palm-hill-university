@@ -3,13 +3,11 @@ $(function () {
     'use strict';
 
     const TK_HOAT_DONG = 1; // TrangThaiTaiKhoan.HoatDong
-    const VAI_TRO_CAN_BO = 'CanBo';
 
     const form = document.getElementById('formLoc');
     const tbody = document.getElementById('tkBody');
     const status = document.getElementById('tkStatus');
     // Bootstrap 5.1: Modal nhận phần tử DOM (chưa hỗ trợ chuỗi selector)
-    const modalTaiKhoan = new bootstrap.Modal(document.getElementById('modalTaiKhoan'));
     const modalMatKhau = new bootstrap.Modal(document.getElementById('modalMatKhau'));
     const modalTrangThai = new bootstrap.Modal(document.getElementById('modalTrangThai'));
 
@@ -39,6 +37,18 @@ $(function () {
         return btn;
     }
 
+    function nutSua(id) {
+        const a = document.createElement('a');
+        a.className = 'btn btn-sm btn-outline-primary me-1';
+        a.href = '/Users/Edit/' + encodeURIComponent(id);
+        a.title = 'Sửa';
+        a.setAttribute('aria-label', 'Sửa');
+        const i = document.createElement('i');
+        i.className = 'bi bi-pencil';
+        a.appendChild(i);
+        return a;
+    }
+
     function taoDong(tk) {
         const tr = document.createElement('tr');
         tr.dataset.id = tk.id;
@@ -53,7 +63,7 @@ $(function () {
         const tdThaoTac = document.createElement('td');
         tdThaoTac.className = 'text-end text-nowrap';
         tdThaoTac.append(
-            nut('Sửa', 'bi-pencil', 'btn-outline-primary me-1', 'sua', tk.id),
+            nutSua(tk.id),
             nut('Cấp lại mật khẩu', 'bi-key', 'btn-outline-warning me-1', 'matkhau', tk.id),
             hoatDong
                 ? nut('Khóa tài khoản', 'bi-lock', 'btn-outline-danger', 'khoa', tk.id)
@@ -124,13 +134,12 @@ $(function () {
 
     function loadKhoa() {
         App.get('/Catalog/Lookup?type=khoa').then(function (res) {
-            [document.getElementById('locKhoa'), document.getElementById('tkKhoa')].forEach(function (select) {
-                res.data.forEach(function (k) {
-                    const opt = document.createElement('option');
-                    opt.value = k.ma;
-                    opt.textContent = k.ten + ' (' + k.ma + ')';
-                    select.appendChild(opt);
-                });
+            const select = document.getElementById('locKhoa');
+            res.data.forEach(function (k) {
+                const opt = document.createElement('option');
+                opt.value = k.ma;
+                opt.textContent = k.ten + ' (' + k.ma + ')';
+                select.appendChild(opt);
             });
         }).catch(function (err) { status.textContent = err.message; });
     }
@@ -144,33 +153,13 @@ $(function () {
     }
 
     function loiModal($modal, err) {
+        if (err.errors && App.showFieldErrors($modal, err.errors)) return;
         $modal.find('.loi-modal').removeClass('d-none').text(App.errorText(err));
     }
 
     function moModal($modal) {
-        $modal.find('.loi-modal').addClass('d-none').text('');
+        App.clearFormErrors($modal.find('form'));
     }
-
-    function capNhatOKhoa() {
-        const laCanBo = $('#tkVaiTro').val() === VAI_TRO_CAN_BO;
-        $('#tkKhoa').prop('disabled', !laCanBo);
-        if (!laCanBo) $('#tkKhoa').val('');
-    }
-
-    // Mở modal tạo mới
-    $('#btnTaoMoi').on('click', function () {
-        const $m = $('#modalTaiKhoan');
-        moModal($m);
-        $('#formTaiKhoan')[0].reset();
-        $('#tkId').val('');
-        $('#tkUserName').prop('disabled', false);
-        $m.find('.nhom-mat-khau').removeClass('d-none');
-        $('#modalTaiKhoanTitle').text('Tạo tài khoản');
-        capNhatOKhoa();
-        modalTaiKhoan.show();
-    });
-
-    $('#tkVaiTro').on('change', capNhatOKhoa);
 
     // Thao tác trên từng dòng (event delegation vì các dòng render động)
     $(tbody).on('click', 'button[data-action]', function () {
@@ -178,20 +167,6 @@ $(function () {
         if (!tk) return;
 
         switch (this.dataset.action) {
-            case 'sua': {
-                const $m = $('#modalTaiKhoan');
-                moModal($m);
-                $('#tkId').val(tk.id);
-                $('#tkUserName').val(tk.userName).prop('disabled', true);
-                $('#tkHoTen').val(tk.hoTen);
-                $('#tkVaiTro').val(tk.vaiTro);
-                capNhatOKhoa();
-                $('#tkKhoa').val(tk.maKhoaPhuTrach || '');
-                $m.find('.nhom-mat-khau').addClass('d-none');
-                $('#modalTaiKhoanTitle').text('Cập nhật tài khoản');
-                modalTaiKhoan.show();
-                break;
-            }
             case 'matkhau':
                 moModal($('#modalMatKhau'));
                 $('#formMatKhau')[0].reset();
@@ -216,49 +191,10 @@ $(function () {
         }
     });
 
-    // Tạo (FR-02) / cập nhật (FR-03)
-    $('#formTaiKhoan').on('submit', function (e) {
-        e.preventDefault();
-        const $m = $('#modalTaiKhoan');
-        const id = $('#tkId').val();
-        const $btn = $(this).find('button[type="submit"]').prop('disabled', true);
-
-        const request = id
-            ? App.post('/Users/Edit', {
-                id: id,
-                hoTen: $('#tkHoTen').val().trim(),
-                vaiTro: $('#tkVaiTro').val(),
-                maKhoaPhuTrach: $('#tkKhoa').val() || null
-            })
-            : App.post('/Users/Create', {
-                userName: $('#tkUserName').val().trim(),
-                hoTen: $('#tkHoTen').val().trim(),
-                vaiTro: $('#tkVaiTro').val(),
-                maKhoaPhuTrach: $('#tkKhoa').val() || null,
-                matKhau: $('#tkMatKhau').val(),
-                xacNhanMatKhau: $('#tkXacNhan').val()
-            });
-
-        request.then(function (res) {
-            modalTaiKhoan.hide();
-            App.toast(res.message);
-            if (id) {
-                capNhatDong(res.data);
-            } else {
-                // Tài khoản mới có thể nằm ở trang khác (sắp theo tên đăng nhập) - tải lại trang hiện tại
-                loadDanhSach();
-            }
-        }).catch(function (err) {
-            // Giữ nguyên dữ liệu trong biểu mẫu để người dùng sửa
-            loiModal($m, err);
-        }).finally(function () {
-            $btn.prop('disabled', false);
-        });
-    });
-
     // Cấp lại mật khẩu (FR-04)
     $('#formMatKhau').on('submit', function (e) {
         e.preventDefault();
+        if (!$(this).valid()) return;
         const $btn = $(this).find('button[type="submit"]').prop('disabled', true);
 
         App.post('/Users/ResetPassword', {
@@ -278,6 +214,7 @@ $(function () {
     // Khóa/mở khóa (FR-05)
     $('#formTrangThai').on('submit', function (e) {
         e.preventDefault();
+        if (!$(this).valid()) return;
         const $btn = $('#ttSubmit').prop('disabled', true);
 
         App.post('/Users/SetLock', {

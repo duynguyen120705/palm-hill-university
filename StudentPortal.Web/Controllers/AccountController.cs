@@ -15,8 +15,9 @@ namespace StudentPortal.Controllers
     // Không action nào nhận định danh từ client - luôn dùng tài khoản đang đăng nhập (FR-09).
     public class AccountController : Controller
     {
-        // Thông báo chung, không tiết lộ tên đăng nhập có tồn tại hay tài khoản bị khóa (FR-06)
-        private const string LoiDangNhap = "Tên đăng nhập hoặc mật khẩu không đúng, hoặc tài khoản không được phép đăng nhập.";
+        // Thông báo chung, không tiết lộ tên đăng nhập có tồn tại hay tài khoản bị khóa (UC01 4a)
+        private const string LoiDangNhap = "Tên đăng nhập hoặc mật khẩu không đúng";
+        private const string LoiKhoaTam = "Tài khoản tạm khóa, vui lòng thử lại sau";
 
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -57,7 +58,15 @@ namespace StudentPortal.Controllers
                 // Không ghi mật khẩu hay tên đăng nhập vào log ứng dụng (NFR-08)
                 _logger.LogInformation("Đăng nhập thất bại (LockedOut={LockedOut}, NotAllowed={NotAllowed})",
                     result.IsLockedOut, result.IsNotAllowed);
-                ModelState.AddModelError(string.Empty, LoiDangNhap);
+
+                // Tài khoản BiKhoa bị từ chối trước bước kiểm tra mật khẩu nên phải tự tăng số lần sai (UC01 4a)
+                if (result.IsNotAllowed)
+                {
+                    var biKhoa = await _userManager.FindByNameAsync(dto.UserName.Trim());
+                    if (biKhoa != null) await _userManager.AccessFailedAsync(biKhoa);
+                }
+
+                ModelState.AddModelError(string.Empty, result.IsLockedOut ? LoiKhoaTam : LoiDangNhap);
                 dto.MatKhau = string.Empty;
                 return View(dto);
             }
@@ -87,18 +96,23 @@ namespace StudentPortal.Controllers
 
         // GET: /Account/AccessDenied
         [HttpGet]
-        [AllowAnonymous]
+        [Authorize]
         public IActionResult AccessDenied()
         {
             Response.StatusCode = StatusCodes.Status403Forbidden;
             return View();
         }
 
-        // GET: /Account/Profile (FR-11)
+        // GET: /Account/Profile (FR-11): định danh luôn lấy từ phiên đăng nhập
         [HttpGet]
         [Authorize]
-        public async Task<IActionResult> Profile()
+        public async Task<IActionResult> Profile(string? id, string? maSV)
         {
+            // Yêu cầu chứa định danh hồ sơ khác: từ chối (UC04 2a)
+            var dinhDanh = id ?? maSV;
+            if (dinhDanh != null && !string.Equals(dinhDanh, User.Identity!.Name, StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+
             return View(await _accountService.GetProfileAsync());
         }
 
@@ -116,23 +130,30 @@ namespace StudentPortal.Controllers
         [Authorize]
         public IActionResult ChangePassword()
         {
-            return View();
+            return View(new ChangePasswordVm());
         }
 
-        // POST: /Account/ChangePassword (Ajax, JSON) - cả ba vai trò
+        // POST: /Account/ChangePassword - cả ba vai trò; lỗi báo tại trường tương ứng (UC03 4a, 4b)
         [HttpPost]
         [Authorize]
-        [ActionName(nameof(ChangePassword))]
-        public async Task<IActionResult> ChangePasswordPost([FromBody] ChangePasswordVm dto)
+        public async Task<IActionResult> ChangePassword(ChangePasswordVm dto)
         {
+            if (!ModelState.IsValid) return View(dto);
+
             var userId = _userManager.GetUserId(User)
                 ?? throw new NghiepVuException("Phiên đăng nhập không hợp lệ.", StatusCodes.Status401Unauthorized);
-            (await _accountService.ChangePasswordAsync(userId, dto.MatKhauHienTai, dto.MatKhauMoi)).ThrowIfFailed();
+            var ketQua = await _accountService.ChangePasswordAsync(userId, dto.MatKhauHienTai, dto.MatKhauMoi);
+            if (!ketQua.Succeeded)
+            {
+                ModelState.AddModelError(ketQua.Truong ?? nameof(dto.MatKhauMoi), ketQua.Error!);
+                return View(dto);
+            }
 
             // SecurityStamp đã đổi: cấp lại cookie để phiên hiện tại tiếp tục hợp lệ (FR-10)
             var user = await _userManager.GetUserAsync(User);
             if (user != null) await _signInManager.RefreshSignInAsync(user);
-            return Ok(ApiResponse.Ok(message: "Đã đổi mật khẩu."));
+            TempData["ThongBao"] = "Đã đổi mật khẩu.";
+            return RedirectToAction(nameof(ChangePassword));
         }
 
         // Về trang chủ theo vai trò; returnUrl không phải URL nội bộ thì bỏ qua (UC01 6a)

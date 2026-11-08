@@ -36,23 +36,25 @@ namespace StudentPortal.Models.ViewModels
         [Required(ErrorMessage = "Họ tên không được để trống")]
         [StringLength(100, MinimumLength = 2, ErrorMessage = ValidationRules.HoTenMessage)]
         [HoTen]
+        [Display(Name = "Họ tên")]
         public string HoTen { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Tên đăng nhập không được để trống")]
         [MaSo]
+        [Display(Name = "Tên đăng nhập")]
         public string UserName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Vui lòng chọn vai trò")]
+        [Display(Name = "Vai trò")]
         public string VaiTro { get; set; } = string.Empty;
 
+        [Display(Name = "Khoa phụ trách")]
         public string? MaKhoaPhuTrach { get; set; }
 
         [Required(ErrorMessage = "Mật khẩu không được để trống")]
         [MatKhauManh]
+        [Display(Name = "Mật khẩu ban đầu")]
         public string MatKhau { get; set; } = string.Empty;
-
-        [Compare(nameof(MatKhau), ErrorMessage = "Xác nhận mật khẩu không khớp")]
-        public string XacNhanMatKhau { get; set; } = string.Empty;
     }
 
     // FR-03 Cập nhật tài khoản Admin/Giáo vụ
@@ -64,11 +66,14 @@ namespace StudentPortal.Models.ViewModels
         [Required(ErrorMessage = "Họ tên không được để trống")]
         [StringLength(100, MinimumLength = 2, ErrorMessage = ValidationRules.HoTenMessage)]
         [HoTen]
+        [Display(Name = "Họ tên")]
         public string HoTen { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Vui lòng chọn vai trò")]
+        [Display(Name = "Vai trò")]
         public string VaiTro { get; set; } = string.Empty;
 
+        [Display(Name = "Khoa phụ trách")]
         public string? MaKhoaPhuTrach { get; set; }
     }
 
@@ -82,6 +87,7 @@ namespace StudentPortal.Models.ViewModels
         [MatKhauManh]
         public string MatKhauMoi { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "Vui lòng xác nhận mật khẩu mới")]
         [Compare(nameof(MatKhauMoi), ErrorMessage = "Xác nhận mật khẩu không khớp")]
         public string XacNhanMatKhau { get; set; } = string.Empty;
     }

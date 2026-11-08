@@ -2,6 +2,9 @@
 @* FR-14 Chi tiết hồ sơ: điểm bắt đầu của các thao tác FR-15 – FR-20 *@
 @{
     ViewData["Title"] = "Chi tiết hồ sơ sinh viên";
+    var cl = new TransferVm();
+    var mk = new StudentResetPasswordVm();
+    var ld = new StudentDeleteVm();
 }
 
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -92,7 +95,8 @@
                 <div class="alert alert-danger d-none loi-modal" role="alert"></div>
                 <div class="mb-3">
                     <label for="clLop" class="form-label">Lớp đích</label>
-                    <select id="clLop" class="form-select" required></select>
+                    <select asp-for="@cl.MaLopDich" id="clLop" class="form-select"></select>
+                    <span asp-validation-for="@cl.MaLopDich" class="text-danger small"></span>
                 </div>
                 <div>
                     <label for="clLyDo" class="form-label">Lý do (không bắt buộc)</label>
@@ -119,12 +123,14 @@
                 <div class="alert alert-danger d-none loi-modal" role="alert"></div>
                 <div class="mb-3">
                     <label for="mkMoi" class="form-label">Mật khẩu mới</label>
-                    <input type="password" id="mkMoi" class="form-control" autocomplete="new-password" required />
+                    <input asp-for="@mk.MatKhauMoi" type="password" id="mkMoi" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="@mk.MatKhauMoi" class="text-danger small"></span>
                     <div class="form-text">Tối thiểu 8 ký tự, gồm cả chữ và số.</div>
                 </div>
                 <div>
                     <label for="mkXacNhan" class="form-label">Xác nhận mật khẩu mới</label>
-                    <input type="password" id="mkXacNhan" class="form-control" autocomplete="new-password" required />
+                    <input asp-for="@mk.XacNhanMatKhau" type="password" id="mkXacNhan" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="@mk.XacNhanMatKhau" class="text-danger small"></span>
                 </div>
             </div>
             <div class="modal-footer">
@@ -146,7 +152,8 @@
             <div class="modal-body">
                 <div class="alert alert-danger d-none loi-modal" role="alert"></div>
                 <label for="ldNoiDung" class="form-label">Lý do (bắt buộc)</label>
-                <input type="text" id="ldNoiDung" class="form-control" required />
+                <input asp-for="@ld.LyDo" type="text" id="ldNoiDung" class="form-control" />
+                <span asp-validation-for="@ld.LyDo" class="text-danger small"></span>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>

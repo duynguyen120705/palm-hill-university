@@ -55,28 +55,37 @@ namespace StudentPortal.Models.ViewModels
     public class ContactEditVm
     {
         [SoDienThoai]
+        [Display(Name = "Số điện thoại")]
         public string? SDT { get; set; }
 
         [StringLength(100, ErrorMessage = ValidationRules.EmailMessage)]
         [EmailAddress(ErrorMessage = ValidationRules.EmailMessage)]
+        [Display(Name = "Email")]
         public string? Email { get; set; }
 
         [StringLength(255, ErrorMessage = "Địa chỉ tối đa 255 ký tự.")]
+        [Display(Name = "Địa chỉ")]
         public string? DiaChi { get; set; }
     }
 
     // FR-10 Đổi mật khẩu
-    [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
     public class ChangePasswordVm
     {
         [Required(ErrorMessage = "Vui lòng nhập mật khẩu hiện tại")]
+        [DataType(DataType.Password)]
+        [Display(Name = "Mật khẩu hiện tại")]
         public string MatKhauHienTai { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Vui lòng nhập mật khẩu mới")]
         [MatKhauManh]
+        [DataType(DataType.Password)]
+        [Display(Name = "Mật khẩu mới")]
         public string MatKhauMoi { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "Vui lòng xác nhận mật khẩu mới")]
         [Compare(nameof(MatKhauMoi), ErrorMessage = "Xác nhận mật khẩu mới không khớp")]
+        [DataType(DataType.Password)]
+        [Display(Name = "Xác nhận mật khẩu mới")]
         public string XacNhanMatKhauMoi { get; set; } = string.Empty;
     }
 }

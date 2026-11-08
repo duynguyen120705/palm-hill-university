@@ -1,16 +1,34 @@
-// FR-10 Đổi mật khẩu, FR-12 Cập nhật thông tin liên hệ
+// FR-12 Cập nhật thông tin liên hệ
 $(function () {
     'use strict';
 
-    function thongBaoLoi($el, err) {
-        $el.removeClass('d-none alert-success').addClass('alert-danger').text(App.errorText(err));
+    const $form = $('#formLienHe');
+    if (!$form.length) return;
+
+    const modal = new bootstrap.Modal(document.getElementById('modalLienHe'));
+    let hienTai = { sdt: $('#lhSdt').val(), email: $('#lhEmail').val(), diaChi: $('#lhDiaChi').val() };
+
+    function hienThi(d) {
+        document.querySelectorAll('[data-lien-he]').forEach(function (el) {
+            el.textContent = d[el.dataset.lienHe] || '—';
+        });
     }
 
-    // FR-12: chỉ gửi đúng 3 trường được phép sửa
-    $('#formLienHe').on('submit', function (e) {
+    $('#btnCapNhatLienHe').on('click', function () {
+        App.clearFormErrors($form);
+        $('#lhSdt').val(hienTai.sdt);
+        $('#lhEmail').val(hienTai.email);
+        $('#lhDiaChi').val(hienTai.diaChi);
+        modal.show();
+    });
+
+    // Chỉ gửi đúng 3 trường được phép sửa
+    $form.on('submit', function (e) {
         e.preventDefault();
-        const $btn = $(this).find('button[type="submit"]').prop('disabled', true);
-        $('#lhMessage').addClass('d-none');
+        if (!$form.valid()) return;
+
+        const $btn = $form.find('button[type="submit"]').prop('disabled', true);
+        $form.find('.loi-modal').addClass('d-none').text('');
 
         App.post('/Account/UpdateContact', {
             sdt: $('#lhSdt').val().trim() || null,
@@ -18,33 +36,13 @@ $(function () {
             diaChi: $('#lhDiaChi').val().trim() || null
         }).then(function (res) {
             // Hiển thị lại giá trị đã chuẩn hóa từ server
-            $('#lhSdt').val(res.data.sdt || '');
-            $('#lhEmail').val(res.data.email || '');
-            $('#lhDiaChi').val(res.data.diaChi || '');
+            hienTai = { sdt: res.data.sdt || '', email: res.data.email || '', diaChi: res.data.diaChi || '' };
+            hienThi(hienTai);
+            modal.hide();
             App.toast(res.message);
         }).catch(function (err) {
-            thongBaoLoi($('#lhMessage'), err);
-        }).finally(function () {
-            $btn.prop('disabled', false);
-        });
-    });
-
-    // FR-10
-    $('#formDoiMatKhau').on('submit', function (e) {
-        e.preventDefault();
-        const $form = $(this);
-        const $btn = $form.find('button[type="submit"]').prop('disabled', true);
-        $('#mkMessage').addClass('d-none');
-
-        App.post('/Account/ChangePassword', {
-            matKhauHienTai: $('#mkHienTai').val(),
-            matKhauMoi: $('#mkMoi').val(),
-            xacNhanMatKhauMoi: $('#mkXacNhan').val()
-        }).then(function (res) {
-            $form[0].reset();
-            App.toast(res.message);
-        }).catch(function (err) {
-            thongBaoLoi($('#mkMessage'), err);
+            if (err.errors && App.showFieldErrors($form, err.errors)) return;
+            $form.find('.loi-modal').removeClass('d-none').text(App.errorText(err));
         }).finally(function () {
             $btn.prop('disabled', false);
         });

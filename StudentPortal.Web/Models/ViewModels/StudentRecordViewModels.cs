@@ -139,6 +139,7 @@ namespace StudentPortal.Models.ViewModels
         [MatKhauManh]
         public string MatKhauMoi { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "Vui lòng xác nhận mật khẩu mới")]
         [Compare(nameof(MatKhauMoi), ErrorMessage = "Xác nhận mật khẩu không khớp")]
         public string XacNhanMatKhau { get; set; } = string.Empty;
     }

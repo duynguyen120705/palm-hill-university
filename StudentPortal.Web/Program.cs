@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StudentPortal.Data;
@@ -135,7 +136,17 @@ if (!app.Environment.IsDevelopment())
 
 // Trang 403, 404 thân thiện cho trình duyệt; request Ajax vẫn nhận mã HTTP và JSON
 app.UseWhen(context => !ExceptionMiddleware.LaAjax(context.Request),
-    nhanh => nhanh.UseStatusCodePagesWithReExecute("/Home/Error/{0}"));
+    nhanh =>
+    {
+        nhanh.UseStatusCodePagesWithReExecute("/Home/Error/{0}");
+        // Trang lỗi chỉ đọc: yêu cầu POST lỗi vẫn hiển thị trang lỗi mà không cần tắt anti-forgery
+        nhanh.Use((context, next) =>
+        {
+            if (context.Features.Get<IStatusCodeReExecuteFeature>() != null)
+                context.Request.Method = HttpMethods.Get;
+            return next();
+        });
+    });
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();

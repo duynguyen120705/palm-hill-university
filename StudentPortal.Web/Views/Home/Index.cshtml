@@ -1,0 +1,63 @@
+﻿@model HomeVm
+@{
+    ViewData["Title"] = "Trang chủ";
+    var laAdmin = User.IsInRole(Roles.Admin);
+
+    (string Nhan, int So)[] theSoLieu = Model.SoLieu == null ? Array.Empty<(string, int)>() : new[]
+    {
+        ("Tổng sinh viên", Model.SoLieu.Tong),
+        ("Đang học", Model.SoLieu.DangHoc),
+        ("Bảo lưu", Model.SoLieu.BaoLuu),
+        ("Đã tốt nghiệp", Model.SoLieu.DaTotNghiep),
+        ("Thôi học", Model.SoLieu.ThoiHoc)
+    };
+}
+
+<h4 class="mb-3"><i class="bi bi-house-door me-2"></i>Trang chủ</h4>
+
+@if (Model.SoLieu != null)
+{
+    <div class="row g-3 mb-4">
+        @foreach (var the in theSoLieu)
+        {
+            <div class="col-6 col-md">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body text-center">
+                        <div class="text-muted">@the.Nhan</div>
+                        <div class="fs-3 fw-bold">@the.So</div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <h5 class="mb-2">Lối tắt</h5>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-primary" asp-controller="Students" asp-action="Index"><i class="bi bi-people-fill me-1"></i>Sinh viên</a>
+        <a class="btn btn-outline-primary" asp-controller="Statistics" asp-action="Index"><i class="bi bi-bar-chart-line me-1"></i>Thống kê</a>
+        <a class="btn btn-outline-primary" asp-controller="Import" asp-action="Index"><i class="bi bi-file-earmark-arrow-up me-1"></i>Nhập Excel</a>
+        <a class="btn btn-outline-primary" asp-controller="Faculties" asp-action="Index"><i class="bi bi-folder2-open me-1"></i>Danh mục</a>
+        @if (laAdmin)
+        {
+            <a class="btn btn-outline-primary" asp-controller="Users" asp-action="Index"><i class="bi bi-person-gear me-1"></i>Tài khoản</a>
+            <a class="btn btn-outline-primary" asp-controller="AuditLogs" asp-action="Index"><i class="bi bi-journal-text me-1"></i>Nhật ký thao tác</a>
+        }
+    </div>
+}
+else if (Model.HoSo != null)
+{
+    <div class="card shadow-sm">
+        <div class="card-header bg-white fw-semibold">Tóm tắt hồ sơ</div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-5 col-md-3">Mã sinh viên</dt><dd class="col-7 col-md-9">@Model.HoSo.MaSV</dd>
+                <dt class="col-5 col-md-3">Họ và tên</dt><dd class="col-7 col-md-9">@Model.HoSo.HoTen</dd>
+                <dt class="col-5 col-md-3">Lớp</dt><dd class="col-7 col-md-9">@Model.HoSo.TenLop (@Model.HoSo.MaLop)</dd>
+                <dt class="col-5 col-md-3">Khoa</dt><dd class="col-7 col-md-9">@Model.HoSo.TenKhoa</dd>
+                <dt class="col-5 col-md-3">Khóa</dt><dd class="col-7 col-md-9">@Model.HoSo.MaKhoaHoc</dd>
+                <dt class="col-5 col-md-3">Trạng thái học tập</dt><dd class="col-7 col-md-9">@Model.HoSo.TrangThaiText</dd>
+            </dl>
+            <a class="btn btn-outline-primary mt-3" asp-controller="Account" asp-action="Profile">Xem hồ sơ cá nhân</a>
+        </div>
+    </div>
+}

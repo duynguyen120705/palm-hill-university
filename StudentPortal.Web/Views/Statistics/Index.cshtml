@@ -1,0 +1,81 @@
+@{
+    ViewData["Title"] = "Thống kê sinh viên";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-bar-chart-line me-2"></i>Thống kê sinh viên</h4>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form id="formThongKe" class="row g-2 align-items-end">
+            <div class="col-12 col-md-2">
+                <label for="selNhomTheo" class="form-label">Nhóm theo</label>
+                <select id="selNhomTheo" name="nhomTheo" class="form-select">
+                    <option value="khoa">Khoa</option>
+                    <option value="khoahoc">Khóa</option>
+                    <option value="lop" selected>Lớp</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="selKhoa" class="form-label">Khoa</label>
+                <select id="selKhoa" name="maKhoa" class="form-select"><option value="">Tất cả</option></select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="selKhoaHoc" class="form-label">Khóa</label>
+                <select id="selKhoaHoc" name="maKhoaHoc" class="form-select"><option value="">Tất cả</option></select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="selLop" class="form-label">Lớp</label>
+                <select id="selLop" name="maLop" class="form-select"><option value="">Tất cả</option></select>
+            </div>
+            <div class="col-12 col-md-2">
+                <label for="selTrangThai" class="form-label">Trạng thái</label>
+                <select id="selTrangThai" name="trangThai" class="form-select">
+                    <option value="">Tất cả</option>
+                    <option value="1">Đang học</option>
+                    <option value="2">Bảo lưu</option>
+                    <option value="4">Thôi học</option>
+                    <option value="3">Đã tốt nghiệp</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-1 d-grid">
+                <button type="submit" class="btn btn-primary">Xem</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-2">
+    <div id="tkStatus" class="small text-muted" aria-live="polite"></div>
+    <div class="btn-group">
+        <button type="button" id="btnXuatExcel" class="btn btn-sm btn-success" disabled><i class="bi bi-file-earmark-excel me-1"></i>Xuất Excel</button>
+        <button type="button" id="btnXuatPdf" class="btn btn-sm btn-danger" disabled><i class="bi bi-file-earmark-pdf me-1"></i>Xuất PDF</button>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th id="thNhom">Lớp</th>
+                    <th class="text-end">Đang học</th>
+                    <th class="text-end">Bảo lưu</th>
+                    <th class="text-end">Đã tốt nghiệp</th>
+                    <th class="text-end">Thôi học</th>
+                    <th class="text-end">Tổng</th>
+                </tr>
+            </thead>
+            <tbody id="tkBody">
+                <tr><td colspan="6" class="text-center text-muted py-4">Chọn tiêu chí rồi bấm Xem.</td></tr>
+            </tbody>
+            <tfoot id="tkFoot" class="table-light fw-semibold"></tfoot>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+
+    <script src="~/js/pages/statistics.js" asp-append-version="true"></script>
+}

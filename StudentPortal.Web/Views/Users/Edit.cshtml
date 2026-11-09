@@ -1,0 +1,54 @@
+@model StaffEditVm
+@{
+    ViewData["Title"] = "Cập nhật tài khoản";
+    var khoas = (SelectList)ViewData["Khoas"]!;
+}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-10 col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h4 class="mb-3"><i class="bi bi-pencil me-2"></i>Cập nhật tài khoản</h4>
+                <form asp-action="Edit" asp-route-id="@Model.Id" method="post" novalidate>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2" role="alert"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="tenDangNhap">Tên đăng nhập</label>
+                        <input id="tenDangNhap" class="form-control" value="@ViewData["UserName"]" disabled />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="HoTen" class="form-label"></label>
+                        <input asp-for="HoTen" class="form-control" maxlength="100" />
+                        <span asp-validation-for="HoTen" class="text-danger small"></span>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label asp-for="VaiTro" class="form-label"></label>
+                            <select asp-for="VaiTro" class="form-select" data-vai-tro>
+                                <option value="@Roles.CanBo">Giáo vụ</option>
+                                <option value="@Roles.Admin">@Roles.TenHienThi(Roles.Admin)</option>
+                            </select>
+                            <span asp-validation-for="VaiTro" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label asp-for="MaKhoaPhuTrach" class="form-label"></label>
+                            <select asp-for="MaKhoaPhuTrach" asp-items="khoas" class="form-select" data-khoa>
+                                <option value="">-- Chọn khoa --</option>
+                            </select>
+                            <span asp-validation-for="MaKhoaPhuTrach" class="text-danger small"></span>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Lưu</button>
+                        <a class="btn btn-outline-secondary" asp-action="Index">Hủy</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/pages/user-form.js" asp-append-version="true"></script>
+}

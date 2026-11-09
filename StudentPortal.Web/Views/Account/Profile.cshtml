@@ -1,0 +1,111 @@
+@model StudentPortal.Models.ViewModels.ProfileVm
+@{
+    ViewData["Title"] = "Hồ sơ cá nhân";
+    var tenVaiTro = Roles.TenHienThi(Model.VaiTro);
+    var sv = Model.SinhVien;
+    var lh = new ContactEditVm { SDT = sv?.SDT, Email = sv?.Email, DiaChi = sv?.DiaChi };
+}
+
+
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-person-vcard me-2"></i>Hồ sơ cá nhân</h4>
+    <a class="btn btn-outline-secondary" asp-action="ChangePassword"><i class="bi bi-key me-1"></i>Đổi mật khẩu</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold">Thông tin tài khoản</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-5">Tên đăng nhập</dt><dd class="col-7">@Model.UserName</dd>
+                    <dt class="col-5">Họ tên</dt><dd class="col-7">@Model.HoTen</dd>
+                    <dt class="col-5">Vai trò</dt><dd class="col-7">@tenVaiTro</dd>
+                    @if (Model.VaiTro == Roles.CanBo)
+                    {
+                        <dt class="col-5">Khoa phụ trách</dt>
+                        <dd class="col-7">@Model.TenKhoaPhuTrach (@Model.MaKhoaPhuTrach)</dd>
+                    }
+                    <dt class="col-5">Trạng thái</dt><dd class="col-7">@Model.TrangThaiTaiKhoanText</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.VaiTro == Roles.SinhVien)
+    {
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white fw-semibold">Hồ sơ sinh viên</div>
+                <div class="card-body">
+                    @if (sv == null)
+                    {
+                        <p class="text-muted mb-0">Không tìm thấy hồ sơ sinh viên gắn với tài khoản này.</p>
+                    }
+                    else
+                    {
+                        <dl class="row mb-3">
+                            <dt class="col-5 col-md-4">Mã sinh viên</dt><dd class="col-7 col-md-8">@sv.MaSV</dd>
+                            <dt class="col-5 col-md-4">Họ tên</dt><dd class="col-7 col-md-8">@sv.HoTen</dd>
+                            <dt class="col-5 col-md-4">Ngày sinh</dt><dd class="col-7 col-md-8">@sv.NgaySinhFormatted</dd>
+                            <dt class="col-5 col-md-4">Giới tính</dt><dd class="col-7 col-md-8">@sv.GioiTinhText</dd>
+                            <dt class="col-5 col-md-4">Lớp</dt><dd class="col-7 col-md-8">@sv.TenLop (@sv.MaLop)</dd>
+                            <dt class="col-5 col-md-4">Khoa / Khóa</dt><dd class="col-7 col-md-8">@sv.TenKhoa / @sv.MaKhoaHoc</dd>
+                            <dt class="col-5 col-md-4">Trạng thái</dt><dd class="col-7 col-md-8">@sv.TrangThaiText</dd>
+                        </dl>
+
+                        <h6 class="border-top pt-3">Thông tin liên hệ</h6>
+                        <dl class="row mb-3">
+                            <dt class="col-5 col-md-4">Số điện thoại</dt><dd class="col-7 col-md-8" data-lien-he="sdt">@(sv.SDT ?? "—")</dd>
+                            <dt class="col-5 col-md-4">Email</dt><dd class="col-7 col-md-8 text-break" data-lien-he="email">@(sv.Email ?? "—")</dd>
+                            <dt class="col-5 col-md-4">Địa chỉ</dt><dd class="col-7 col-md-8" data-lien-he="diaChi">@(sv.DiaChi ?? "—")</dd>
+                        </dl>
+                        <button type="button" id="btnCapNhatLienHe" class="btn btn-primary"><i class="bi bi-pencil me-1"></i>Cập nhật</button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (sv != null)
+{
+    @* FR-12 Cập nhật thông tin liên hệ *@
+    <div class="modal fade" id="modalLienHe" tabindex="-1" aria-labelledby="modalLienHeTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="formLienHe" class="modal-content" novalidate>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalLienHeTitle">Cập nhật thông tin liên hệ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none loi-modal" role="alert"></div>
+                    <div class="mb-3">
+                        <label for="lhSdt" class="form-label">Số điện thoại</label>
+                        <input asp-for="@lh.SDT" id="lhSdt" type="tel" class="form-control" maxlength="10" placeholder="0xxxxxxxxx" />
+                        <span asp-validation-for="@lh.SDT" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="lhEmail" class="form-label">Email</label>
+                        <input asp-for="@lh.Email" id="lhEmail" type="email" class="form-control" maxlength="100" />
+                        <span asp-validation-for="@lh.Email" class="text-danger small"></span>
+                    </div>
+                    <div>
+                        <label for="lhDiaChi" class="form-label">Địa chỉ</label>
+                        <input asp-for="@lh.DiaChi" id="lhDiaChi" type="text" class="form-control" maxlength="255" />
+                        <span asp-validation-for="@lh.DiaChi" class="text-danger small"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/pages/profile.js" asp-append-version="true"></script>
+}

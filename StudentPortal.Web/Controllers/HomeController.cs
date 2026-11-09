@@ -30,8 +30,8 @@ public class HomeController : Controller
     }
 
     // Trang lỗi 403, 404, 500 thân thiện, không lộ thông tin kỹ thuật
+    [HttpGet]
     [AllowAnonymous]
-    [IgnoreAntiforgeryToken]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error(int? id)
     {

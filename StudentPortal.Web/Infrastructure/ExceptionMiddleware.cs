@@ -46,7 +46,7 @@ namespace StudentPortal.Infrastructure
         {
             context.Response.Clear();
             context.Response.StatusCode = statusCode;
-            return context.Response.WriteAsJsonAsync(ApiResponse.Fail(message));
+            return context.Response.WriteAsJsonAsync(ApiResponse.Fail(message), context.RequestAborted);
         }
     }
 }

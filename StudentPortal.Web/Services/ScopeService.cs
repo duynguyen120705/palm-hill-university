@@ -1,19 +1,21 @@
 using Microsoft.EntityFrameworkCore;
-using StudentPortal.Data;
 using StudentPortal.Infrastructure.Authorization;
 using StudentPortal.Models.Entities;
+using StudentPortal.Repositories;
 using StudentPortal.Services.Interfaces;
 
 namespace StudentPortal.Services
 {
     public class ScopeService : IScopeService
     {
-        private readonly AppDbContext _context;
+        private readonly IRepository<SinhVien> _sinhViens;
+        private readonly IRepository<Lop> _lops;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public ScopeService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
+        public ScopeService(IRepository<SinhVien> sinhViens, IRepository<Lop> lops, IHttpContextAccessor httpContextAccessor)
         {
-            _context = context;
+            _sinhViens = sinhViens;
+            _lops = lops;
             _httpContextAccessor = httpContextAccessor;
         }
 
@@ -70,13 +72,13 @@ namespace StudentPortal.Services
 
         public async Task EnsureStudentInScopeAsync(string maSV)
         {
-            if (!await ApplyStudentScope(_context.SinhViens.AsNoTracking()).AnyAsync(s => s.MaSV == maSV))
+            if (!await ApplyStudentScope(_sinhViens.QueryNoTracking()).AnyAsync(s => s.MaSV == maSV))
                 throw new ScopeException();
         }
 
         public async Task EnsureClassInScopeAsync(string maLop)
         {
-            if (!await ApplyClassScope(_context.Lops.AsNoTracking()).AnyAsync(l => l.MaLop == maLop))
+            if (!await ApplyClassScope(_lops.QueryNoTracking()).AnyAsync(l => l.MaLop == maLop))
                 throw new ScopeException();
         }
     }

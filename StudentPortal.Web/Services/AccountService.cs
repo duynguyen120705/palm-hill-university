@@ -1,27 +1,36 @@
 using System.Linq.Expressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using StudentPortal.Data;
 using StudentPortal.Infrastructure;
 using StudentPortal.Infrastructure.Authorization;
 using StudentPortal.Infrastructure.Validation;
 using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
+using StudentPortal.Repositories;
 using StudentPortal.Services.Interfaces;
 
 namespace StudentPortal.Services
 {
     public class AccountService : IAccountService
     {
-        private readonly AppDbContext _context;
+        private readonly IRepository<ApplicationUser> _users;
+        private readonly IRepository<IdentityUserRole<string>> _userRoles;
+        private readonly IRepository<IdentityRole> _roles;
+        private readonly IRepository<Khoa> _khoas;
+        private readonly IRepository<SinhVien> _sinhViens;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAuditLogService _auditLog;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public AccountService(AppDbContext context, UserManager<ApplicationUser> userManager,
-            IAuditLogService auditLog, IHttpContextAccessor httpContextAccessor)
+        public AccountService(IRepository<ApplicationUser> users, IRepository<IdentityUserRole<string>> userRoles,
+            IRepository<IdentityRole> roles, IRepository<Khoa> khoas, IRepository<SinhVien> sinhViens,
+            UserManager<ApplicationUser> userManager, IAuditLogService auditLog, IHttpContextAccessor httpContextAccessor)
         {
-            _context = context;
+            _users = users;
+            _userRoles = userRoles;
+            _roles = roles;
+            _khoas = khoas;
+            _sinhViens = sinhViens;
             _userManager = userManager;
             _auditLog = auditLog;
             _httpContextAccessor = httpContextAccessor;
@@ -223,7 +232,7 @@ namespace StudentPortal.Services
             };
 
             if (taiKhoan.MaKhoaPhuTrach != null)
-                hoSo.TenKhoaPhuTrach = await _context.Khoas.AsNoTracking()
+                hoSo.TenKhoaPhuTrach = await _khoas.QueryNoTracking()
                     .Where(k => k.MaKhoa == taiKhoan.MaKhoaPhuTrach).Select(k => k.TenKhoa).FirstOrDefaultAsync();
 
             // Admin/Giáo vụ chỉ xem thông tin tài khoản; sinh viên xem hồ sơ của mình (FR-11)
@@ -242,7 +251,7 @@ namespace StudentPortal.Services
                 throw new NghiepVuException("Chỉ sinh viên được cập nhật thông tin liên hệ.", StatusCodes.Status403Forbidden);
 
             // Quyền sở hữu: chỉ hồ sơ gắn với tài khoản đang đăng nhập (global filter loại hồ sơ đã xóa mềm)
-            var sv = await _context.SinhViens.FirstOrDefaultAsync(s => s.MaSV == taiKhoan.MaSV)
+            var sv = await _sinhViens.Query().FirstOrDefaultAsync(s => s.MaSV == taiKhoan.MaSV)
                 ?? throw new NghiepVuException("Không tìm thấy hồ sơ sinh viên.", StatusCodes.Status404NotFound);
 
             sv.SDT = string.IsNullOrWhiteSpace(dto.SDT) ? null : dto.SDT.Trim();
@@ -251,24 +260,21 @@ namespace StudentPortal.Services
 
             // Chỉ ghi định danh, không ghi giá trị liên hệ (NFR-07); lưu cùng một lần SaveChanges
             await _auditLog.LogAsync("CapNhatLienHe", "SinhVien", sv.MaSV);
-            await _context.SaveChangesAsync();
+            await _users.SaveChangesAsync();
 
             return (await TimHoSoSinhVienAsync(sv.MaSV))!;
         }
 
         // ===================== Hỗ trợ =====================
 
-        // Chạy thao tác trong giao dịch của bên gọi; nếu bên gọi chưa mở thì tự mở và commit.
-        // Lưu nhật ký đã Add trong thao tác. Lỗi 400/409 trả về Result.Fail (giao dịch tự mở sẽ rollback).
+        // Chạy thao tác trong giao dịch của bên gọi, không tự Commit (mục 3.2.1.4).
+        // Lưu nhật ký đã Add trong thao tác. Lỗi 400/409 trả về Result.Fail, bên gọi không commit thì giao dịch rollback.
         private async Task<Result> ThucHienAsync(Func<Task> thaoTac)
         {
-            var tuMo = _context.Database.CurrentTransaction == null;
-            await using var tx = tuMo ? await _context.Database.BeginTransactionAsync() : null;
             try
             {
                 await thaoTac();
-                await _context.SaveChangesAsync();
-                if (tx != null) await tx.CommitAsync();
+                await _users.SaveChangesAsync();
                 return Result.Ok();
             }
             catch (NghiepVuException ex) when (ex.StatusCode is StatusCodes.Status400BadRequest or StatusCodes.Status409Conflict)
@@ -279,9 +285,9 @@ namespace StudentPortal.Services
 
         // Tài khoản Admin/Giáo vụ kèm vai trò; tài khoản sinh viên quản lý ở FR-19, FR-20
         private IQueryable<TaiKhoanVaiTro> QueryTaiKhoan() =>
-            from u in _context.Users.AsNoTracking()
-            join ur in _context.UserRoles on u.Id equals ur.UserId
-            join r in _context.Roles on ur.RoleId equals r.Id
+            from u in _users.QueryNoTracking()
+            join ur in _userRoles.Query() on u.Id equals ur.UserId
+            join r in _roles.Query() on ur.RoleId equals r.Id
             where r.Name == Roles.Admin || r.Name == Roles.CanBo
             select new TaiKhoanVaiTro { User = u, VaiTro = r.Name! };
 
@@ -314,7 +320,7 @@ namespace StudentPortal.Services
             if (string.IsNullOrWhiteSpace(maKhoa))
                 throw new NghiepVuException("Giáo vụ bắt buộc có khoa phụ trách.") { Truong = nameof(StaffCreateDto.MaKhoaPhuTrach) };
             // Global query filter đã loại khoa xóa mềm
-            if (!await _context.Khoas.AnyAsync(k => k.MaKhoa == maKhoa))
+            if (!await _khoas.Query().AnyAsync(k => k.MaKhoa == maKhoa))
                 throw new NghiepVuException($"Khoa '{maKhoa}' không tồn tại hoặc đã ngừng sử dụng.") { Truong = nameof(StaffCreateDto.MaKhoaPhuTrach) };
             return maKhoa;
         }
@@ -343,7 +349,7 @@ namespace StudentPortal.Services
         }
 
         private Task<StudentProfileVm?> TimHoSoSinhVienAsync(string maSV) =>
-            _context.SinhViens.AsNoTracking()
+            _sinhViens.QueryNoTracking()
                 .Where(s => s.MaSV == maSV)
                 .Select(s => new StudentProfileVm
                 {

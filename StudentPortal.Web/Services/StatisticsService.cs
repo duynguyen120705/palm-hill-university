@@ -1,20 +1,20 @@
 using Microsoft.EntityFrameworkCore;
-using StudentPortal.Data;
 using StudentPortal.Infrastructure;
 using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
+using StudentPortal.Repositories;
 using StudentPortal.Services.Interfaces;
 
 namespace StudentPortal.Services
 {
     public class StatisticsService : IStatisticsService
     {
-        private readonly AppDbContext _context;
+        private readonly IRepository<SinhVien> _sinhViens;
         private readonly IScopeService _scope;
 
-        public StatisticsService(AppDbContext context, IScopeService scope)
+        public StatisticsService(IRepository<SinhVien> sinhViens, IScopeService scope)
         {
-            _context = context;
+            _sinhViens = sinhViens;
             _scope = scope;
         }
 
@@ -36,7 +36,7 @@ namespace StudentPortal.Services
             };
 
             // Áp phạm vi (FR-09) trước khi lọc; global query filter đã loại bản ghi xóa mềm
-            var query = _scope.ApplyStudentScope(_context.SinhViens.AsNoTracking());
+            var query = _scope.ApplyStudentScope(_sinhViens.QueryNoTracking());
 
             if (!string.IsNullOrWhiteSpace(filter.MaKhoa))
                 query = query.Where(s => s.Lop!.MaKhoa == filter.MaKhoa);

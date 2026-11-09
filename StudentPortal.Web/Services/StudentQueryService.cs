@@ -1,27 +1,27 @@
 using Microsoft.EntityFrameworkCore;
-using StudentPortal.Data;
 using StudentPortal.Infrastructure;
 using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
+using StudentPortal.Repositories;
 using StudentPortal.Services.Interfaces;
 
 namespace StudentPortal.Services
 {
     public class StudentQueryService : IStudentQueryService
     {
-        private readonly AppDbContext _context;
+        private readonly IRepository<SinhVien> _sinhViens;
         private readonly IScopeService _scope;
 
-        public StudentQueryService(AppDbContext context, IScopeService scope)
+        public StudentQueryService(IRepository<SinhVien> sinhViens, IScopeService scope)
         {
-            _context = context;
+            _sinhViens = sinhViens;
             _scope = scope;
         }
 
         public IQueryable<SinhVien> BuildQuery(StudentFilter filter)
         {
             // Phạm vi (FR-09) trước; global query filter đã loại hồ sơ xóa mềm
-            var query = _scope.ApplyStudentScope(_context.SinhViens.AsNoTracking());
+            var query = _scope.ApplyStudentScope(_sinhViens.QueryNoTracking());
 
             // Không phân biệt hoa thường và dấu: chuẩn hóa từ khóa rồi tìm theo HoTenKhongDau (FR-22)
             if (!string.IsNullOrWhiteSpace(filter.Keyword))

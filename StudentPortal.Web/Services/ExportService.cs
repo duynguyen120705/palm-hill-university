@@ -1,23 +1,24 @@
 using Microsoft.EntityFrameworkCore;
-using StudentPortal.Data;
 using StudentPortal.Infrastructure;
 using StudentPortal.Models.ViewModels;
+using StudentPortal.Models.Entities;
+using StudentPortal.Repositories;
 using StudentPortal.Services.Interfaces;
 
 namespace StudentPortal.Services
 {
     public class ExportService : IExportService
     {
-        private readonly AppDbContext _context;
+        private readonly IRepository<Khoa> _khoas;
         private readonly IStudentQueryService _studentQuery;
         private readonly IStatisticsService _statistics;
         private readonly IScopeService _scope;
         private readonly IAuditLogService _auditLog;
 
-        public ExportService(AppDbContext context, IStudentQueryService studentQuery, IStatisticsService statistics,
+        public ExportService(IRepository<Khoa> khoas, IStudentQueryService studentQuery, IStatisticsService statistics,
             IScopeService scope, IAuditLogService auditLog)
         {
-            _context = context;
+            _khoas = khoas;
             _studentQuery = studentQuery;
             _statistics = statistics;
             _scope = scope;
@@ -69,7 +70,7 @@ namespace StudentPortal.Services
 
             // Ghi nhật ký: người xuất, phạm vi, tiêu chí, thời điểm (không ghi từ khóa vì có thể là dữ liệu cá nhân)
             await _auditLog.LogAsync("XuatDanhSach", "File", file.TenFile, MoTaPhamVi(filter));
-            await _context.SaveChangesAsync();
+            await _khoas.SaveChangesAsync();
             return file;
         }
 
@@ -113,7 +114,7 @@ namespace StudentPortal.Services
             });
 
             await _auditLog.LogAsync("XuatThongKe", "File", file.TenFile, MoTaPhamVi(filter));
-            await _context.SaveChangesAsync();
+            await _khoas.SaveChangesAsync();
             return file;
         }
 
@@ -131,7 +132,7 @@ namespace StudentPortal.Services
         {
             var maKhoa = BoTrong(filter.MaKhoa) ?? _scope.GetCurrent().MaKhoaPhuTrach;
             if (maKhoa == null) return null;
-            return await _context.Khoas.AsNoTracking()
+            return await _khoas.QueryNoTracking()
                 .Where(k => k.MaKhoa == maKhoa)
                 .Select(k => k.TenKhoa)
                 .FirstOrDefaultAsync();

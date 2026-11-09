@@ -14,15 +14,19 @@ namespace StudentPortal.Services
         private const string LoaiSinhVien = "SinhVien";
 
         private readonly AppDbContext _context;
+        private readonly IRepository<Lop> _lops;
+        private readonly IRepository<ApplicationUser> _users;
         private readonly IRepository<SinhVien> _students;
         private readonly IAccountService _account;
         private readonly IScopeService _scope;
         private readonly IAuditLogService _auditLog;
 
-        public StudentService(AppDbContext context, IRepository<SinhVien> students, IAccountService account,
+        public StudentService(AppDbContext context, IRepository<Lop> lops, IRepository<ApplicationUser> users, IRepository<SinhVien> students, IAccountService account,
             IScopeService scope, IAuditLogService auditLog)
         {
             _context = context;
+            _lops = lops;
+            _users = users;
             _students = students;
             _account = account;
             _scope = scope;
@@ -57,7 +61,7 @@ namespace StudentPortal.Services
                 TrangThai = dto.TrangThai
             });
             await _auditLog.LogAsync("TaoHoSo", LoaiSinhVien, maSV);
-            await _context.SaveChangesAsync();
+            await _students.SaveChangesAsync();
 
             // Lỗi tạo tài khoản: giao dịch chưa commit nên hồ sơ cũng bị hủy (FR-13)
             var taoTaiKhoan = await _account.CreateStudentAccountAsync(maSV, dto.MatKhau);
@@ -132,7 +136,7 @@ namespace StudentPortal.Services
             sv.DiaChi = LamSach(dto.DiaChi);
 
             await _auditLog.LogAsync("SuaHoSo", LoaiSinhVien, sv.MaSV);
-            await _context.SaveChangesAsync();
+            await _students.SaveChangesAsync();
             return await GetDetailAsync(sv.MaSV);
         }
 
@@ -168,7 +172,7 @@ namespace StudentPortal.Services
             sv.DaCoBienDong = true;
             await _auditLog.LogAsync("DoiTrangThai", LoaiSinhVien, sv.MaSV,
                 $"{cu.TenHienThi()} -> {moi.TenHienThi()}" + (lyDo == null ? "" : $"; Lý do: {lyDo}"));
-            await _context.SaveChangesAsync();
+            await _students.SaveChangesAsync();
 
             // Chuyển sang Thôi học tự động khóa tài khoản trong cùng giao dịch.
             // Thôi học -> Đang học: tài khoản giữ trạng thái khóa, chỉ mở thủ công (FR-20)
@@ -196,7 +200,7 @@ namespace StudentPortal.Services
 
             await _auditLog.LogAsync("ChuyenLop", LoaiSinhVien, sv.MaSV,
                 $"{lopCu} -> {dto.MaLopDich}" + (lyDo == null ? "" : $"; Lý do: {lyDo}"));
-            await _context.SaveChangesAsync();
+            await _students.SaveChangesAsync();
             return await GetDetailAsync(sv.MaSV);
         }
 
@@ -218,7 +222,7 @@ namespace StudentPortal.Services
                     throw new NghiepVuException("Giáo vụ chỉ được xóa hồ sơ ở trạng thái Đang học.");
                 if (sv.DaCoBienDong)
                     throw new NghiepVuException("Hồ sơ đã có thao tác đổi trạng thái hoặc chuyển lớp.");
-                if (await _context.Users.AnyAsync(u => u.MaSV == sv.MaSV && u.LanDangNhapCuoi != null))
+                if (await _users.Query().AnyAsync(u => u.MaSV == sv.MaSV && u.LanDangNhapCuoi != null))
                     throw new NghiepVuException("Sinh viên đã từng đăng nhập.");
             }
 
@@ -230,7 +234,7 @@ namespace StudentPortal.Services
             sv.NguoiXoa = scope.UserName;
             sv.LyDoXoa = lyDo;
             await _auditLog.LogAsync("XoaMemHoSo", LoaiSinhVien, sv.MaSV, lyDo);
-            await _context.SaveChangesAsync();
+            await _students.SaveChangesAsync();
 
             await KhoaTaiKhoanNeuDangHoatDongAsync(sv.MaSV, "Hồ sơ đã bị xóa mềm");
             await tx.CommitAsync();
@@ -242,7 +246,10 @@ namespace StudentPortal.Services
         {
             var sv = await LayHoSoAsync(dto.MaSV, tracking: false);
             var userName = await LayTenDangNhapAsync(sv.MaSV);
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
             (await _account.ResetPasswordAsync(userName, dto.MatKhauMoi)).ThrowIfFailed();
+            await tx.CommitAsync();
         }
 
         public async Task<StudentDetailVm> SetLockAsync(StudentSetLockVm dto)
@@ -258,7 +265,10 @@ namespace StudentPortal.Services
                 throw new NghiepVuException("Chỉ Admin được mở khóa tài khoản sinh viên Thôi học.", StatusCodes.Status403Forbidden);
 
             var userName = await LayTenDangNhapAsync(sv.MaSV);
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
             (await _account.SetLockAsync(userName, dto.Khoa, dto.LyDo)).ThrowIfFailed();
+            await tx.CommitAsync();
             return await GetDetailAsync(sv.MaSV);
         }
 
@@ -297,7 +307,7 @@ namespace StudentPortal.Services
                     $"{trangThaiCu.TenHienThi()} -> {trangThai.TenHienThi()}");
             }
             if (doiLop || doiTrangThai) sv.DaCoBienDong = true;
-            await _context.SaveChangesAsync();
+            await _students.SaveChangesAsync();
 
             // Thôi học -> Đang học: tài khoản giữ trạng thái khóa, chỉ mở thủ công (FR-20)
             if (doiTrangThai && trangThai == TrangThaiHocTap.ThoiHoc)
@@ -342,7 +352,7 @@ namespace StudentPortal.Services
         // Lớp phải đang sử dụng (global query filter đã loại lớp xóa mềm) và thuộc phạm vi được phép
         private async Task KiemTraLopAsync(string maLop)
         {
-            if (!await _context.Lops.AnyAsync(l => l.MaLop == maLop))
+            if (!await _lops.Query().AnyAsync(l => l.MaLop == maLop))
                 throw new NghiepVuException("Lớp không tồn tại hoặc đã ngừng sử dụng.");
             await _scope.EnsureClassInScopeAsync(maLop);
         }
@@ -359,7 +369,7 @@ namespace StudentPortal.Services
 
         private async Task KhoaTaiKhoanNeuDangHoatDongAsync(string maSV, string lyDo)
         {
-            var userName = await _context.Users.AsNoTracking()
+            var userName = await _users.QueryNoTracking()
                 .Where(u => u.MaSV == maSV && u.TrangThaiTaiKhoan == TrangThaiTaiKhoan.HoatDong)
                 .Select(u => u.UserName)
                 .FirstOrDefaultAsync();
@@ -368,7 +378,7 @@ namespace StudentPortal.Services
         }
 
         private async Task<string> LayTenDangNhapAsync(string maSV) =>
-            await _context.Users.AsNoTracking()
+            await _users.QueryNoTracking()
                 .Where(u => u.MaSV == maSV)
                 .Select(u => u.UserName)
                 .FirstOrDefaultAsync()

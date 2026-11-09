@@ -136,6 +136,7 @@ namespace StudentPortal.Controllers
         // POST: /Account/ChangePassword - cả ba vai trò; lỗi báo tại trường tương ứng (UC03 4a, 4b)
         [HttpPost]
         [Authorize]
+        [GiaoDich]
         public async Task<IActionResult> ChangePassword(ChangePasswordVm dto)
         {
             if (!ModelState.IsValid) return View(dto);

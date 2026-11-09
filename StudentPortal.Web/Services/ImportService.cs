@@ -7,6 +7,7 @@ using StudentPortal.Data;
 using StudentPortal.Infrastructure;
 using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
+using StudentPortal.Repositories;
 using StudentPortal.Services.Interfaces;
 
 namespace StudentPortal.Services
@@ -27,13 +28,17 @@ namespace StudentPortal.Services
         };
 
         private readonly AppDbContext _context;
+        private readonly IRepository<Lop> _lops;
+        private readonly IRepository<SinhVien> _sinhViens;
         private readonly IStudentService _students;
         private readonly IScopeService _scope;
         private readonly IAuditLogService _auditLog;
 
-        public ImportService(AppDbContext context, IStudentService students, IScopeService scope, IAuditLogService auditLog)
+        public ImportService(AppDbContext context, IRepository<Lop> lops, IRepository<SinhVien> sinhViens, IStudentService students, IScopeService scope, IAuditLogService auditLog)
         {
             _context = context;
+            _lops = lops;
+            _sinhViens = sinhViens;
             _students = students;
             _scope = scope;
             _auditLog = auditLog;
@@ -85,9 +90,9 @@ namespace StudentPortal.Services
                 .ToDictionary(g => g.Key, g => g.ToList());
 
             // Global filter đã loại lớp xóa mềm; so khớp không phân biệt hoa thường rồi dùng mã chuẩn trong CSDL
-            var lopDangDung = (await _context.Lops.AsNoTracking().Select(l => l.MaLop).ToListAsync())
+            var lopDangDung = (await _lops.QueryNoTracking().Select(l => l.MaLop).ToListAsync())
                 .ToDictionary(m => m, m => m, StringComparer.OrdinalIgnoreCase);
-            var lopDuocPhep = (await _scope.ApplyClassScope(_context.Lops.AsNoTracking()).Select(l => l.MaLop).ToListAsync())
+            var lopDuocPhep = (await _scope.ApplyClassScope(_lops.QueryNoTracking()).Select(l => l.MaLop).ToListAsync())
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var scope = _scope.GetCurrent();
@@ -138,7 +143,7 @@ namespace StudentPortal.Services
 
             await _auditLog.LogAsync("Import", "File", tenFile,
                 $"Thêm mới: {ketQua.SoThemMoi}, cập nhật: {ketQua.SoCapNhat}, lỗi: {ketQua.SoLoi}");
-            await _context.SaveChangesAsync();
+            await _lops.SaveChangesAsync();
 
             return ketQua;
         }
@@ -206,7 +211,7 @@ namespace StudentPortal.Services
         {
             if (maSV.Length == 0) throw new DongLoiException(CotMaSV, "Thiếu mã sinh viên");
 
-            var daXoa = await _context.SinhViens.IgnoreQueryFilters().AsNoTracking()
+            var daXoa = await _sinhViens.QueryIncludingDeleted().AsNoTracking()
                 .Where(s => s.MaSV == maSV)
                 .Select(s => (bool?)s.DaXoa)
                 .FirstOrDefaultAsync();

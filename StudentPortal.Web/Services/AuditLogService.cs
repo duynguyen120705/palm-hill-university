@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using StudentPortal.Data;
 using StudentPortal.Infrastructure;
 using StudentPortal.Models.Entities;
 using StudentPortal.Models.ViewModels;
+using StudentPortal.Repositories;
 using StudentPortal.Services.Interfaces;
 
 namespace StudentPortal.Services
@@ -12,18 +12,18 @@ namespace StudentPortal.Services
         // ThoiDiem lưu UTC, hiển thị và lọc theo UTC+7 (mục 3.2.2.1)
         private const int LechGioHienThi = 7;
 
-        private readonly AppDbContext _context;
+        private readonly IRepository<NhatKyThaoTac> _nhatKy;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public AuditLogService(AppDbContext context, IHttpContextAccessor httpContextAccessor)
+        public AuditLogService(IRepository<NhatKyThaoTac> nhatKy, IHttpContextAccessor httpContextAccessor)
         {
-            _context = context;
+            _nhatKy = nhatKy;
             _httpContextAccessor = httpContextAccessor;
         }
 
         public Task LogAsync(string hanhDong, string doiTuongLoai, string doiTuongMa, string? chiTiet = null)
         {
-            _context.NhatKyThaoTacs.Add(new NhatKyThaoTac
+            _nhatKy.Add(new NhatKyThaoTac
             {
                 ThoiDiem = DateTime.UtcNow,
                 Username = _httpContextAccessor.HttpContext?.User.Identity?.Name ?? "unknown",
@@ -37,7 +37,7 @@ namespace StudentPortal.Services
 
         public async Task<PagedResult<AuditLogDto>> QueryAsync(AuditLogFilter filter)
         {
-            var query = _context.NhatKyThaoTacs.AsNoTracking();
+            var query = _nhatKy.QueryNoTracking();
 
             if (filter.TuNgay.HasValue)
             {

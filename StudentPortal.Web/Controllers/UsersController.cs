@@ -42,6 +42,7 @@ namespace StudentPortal.Controllers
 
         // POST: /Users/Create - lỗi báo tại trường, giữ nguyên biểu mẫu (UC06 6a)
         [HttpPost]
+        [GiaoDich]
         public async Task<IActionResult> Create(StaffCreateDto dto)
         {
             if (ModelState.IsValid)
@@ -84,6 +85,7 @@ namespace StudentPortal.Controllers
 
         // POST: /Users/Edit/{id}
         [HttpPost]
+        [GiaoDich]
         public async Task<IActionResult> Edit(StaffEditVm dto)
         {
             try
@@ -115,6 +117,7 @@ namespace StudentPortal.Controllers
 
         // POST: /Users/ResetPassword (Ajax, JSON) - FR-04
         [HttpPost]
+        [GiaoDich]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordVm dto)
         {
             var taiKhoan = await _accountService.GetStaffAsync(dto.Id);
@@ -124,6 +127,7 @@ namespace StudentPortal.Controllers
 
         // POST: /Users/SetLock (Ajax, JSON) - FR-05: khóa thay cho xóa vì tài khoản không bị xóa
         [HttpPost]
+        [GiaoDich]
         public async Task<IActionResult> SetLock([FromBody] SetLockVm dto)
         {
             var taiKhoan = await _accountService.GetStaffAsync(dto.Id);

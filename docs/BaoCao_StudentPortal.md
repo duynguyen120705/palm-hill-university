@@ -3284,7 +3284,11 @@ public static string BoDau(string? s)
 
 ### 4.3.6. Đánh giá
 
-Mục 4.5 có 10 ca của UC17 – UC18, tất cả đều đạt: lọc theo Khoa, Khóa, Lớp, Trạng thái, giới hạn theo phạm vi, tìm không dấu (gõ "nguyen", "NGUYỄN" cho cùng kết quả, "do" tìm ra "Đỗ"), thông báo khi không có kết quả và giới hạn 100 dòng/trang. Giao diện không cuộn ngang ở 390 px và 768 px (TC139, TC140). Với khoảng 1.000 sinh viên trên máy phát triển, thời gian phản hồi lâu nhất trong 5 lần gọi của các API danh sách, tìm kiếm, thống kê là 15 ms, 10 ms, 4 ms, 10 ms, thấp hơn nhiều so với ngưỡng 2 giây của NFR-02 (TC138).
+Mục 4.5 có 11 ca của UC17 – UC18, 10/11 ca đạt: lọc theo Khoa, Khóa, Lớp, Trạng thái, giới hạn theo phạm vi, tìm không dấu (gõ "nguyen", "NGUYỄN" cho cùng kết quả, "do" tìm ra "Đỗ"), thông báo khi không có kết quả và giới hạn 100 dòng/trang. Giao diện không cuộn ngang ở 390 px và 768 px (TC139, TC140). Với khoảng 1.000 sinh viên trên máy phát triển, thời gian phản hồi lâu nhất trong 5 lần gọi của các API danh sách, tìm kiếm, thống kê là 15 ms, 10 ms, 4 ms, 10 ms, thấp hơn nhiều so với ngưỡng 2 giây của NFR-02 (TC138).
+
+Ca TC150 chưa đạt: dữ liệu mẫu có 71 hồ sơ có họ tên viết bằng chữ Ð (U+00D0, chữ Eth) thay cho chữ Đ tiếng Việt (U+0110), ví dụ "Vương Ðức Giang". Hàm TextHelper.BoDau chỉ đổi đ (U+0111) thành d, nên cột HoTenKhongDau lưu "vuong ðuc giang"; tìm "duc giang" hay "Vương Đức Giang" đều không ra hồ sơ này. Cách khắc phục được nêu ở mục 5.3.
+
+Kiểm thử tải với 10, 25 và 50 người dùng đồng thời, mỗi mức 30 giây, không có yêu cầu lỗi; thời gian phản hồi p95 lần lượt 11 ms, 21 ms, 47 ms (TC151, TC152, TC153).
 
 ## 4.4. Nhập danh sách từ Excel và xuất báo cáo – Trần Văn Dũng
 
@@ -3427,27 +3431,28 @@ public async Task<FileXuat?> ExportStudentsAsync(StudentFilter filter, bool pdf)
 
 ### 4.4.6. Đánh giá
 
-Mục 4.5 có 20 ca của UC20 – UC23, tất cả đều đạt. Một số kết quả tiêu biểu:
+Mục 4.5 có 29 ca của UC20 – UC23, tất cả đều đạt. Một số kết quả tiêu biểu:
 
 - File thử 6 dòng (3 hợp lệ, 3 lỗi cố ý) cho kết quả tổng 6, thêm mới 3, lỗi 3. Ba lỗi được báo đúng dòng, cột và nội dung: lớp ngoài khoa phụ trách, ngày 31/02 không hợp lệ, dòng thêm mới thiếu mật khẩu (TC119).
 - Mã SV lặp trong file, mã trùng hồ sơ đã xóa mềm bị báo lỗi theo dòng; dòng cập nhật để trống ô liên hệ giữ nguyên giá trị cũ (TC122, TC123, TC121).
 - File .csv, file quá 5 MB, file sai tiêu đề cột hoặc không đọc được bị từ chối cả file (TC124, TC125, TC126, TC127).
 - Số liệu thống kê theo từng trạng thái khớp với danh sách lọc tương ứng; tổng cộng bằng tổng số sinh viên (TC110, TC108). Xuất file khi không có dữ liệu bị chặn, và Giáo vụ không xuất được dữ liệu khoa khác (TC113, TC114).
+- Nội dung file xuất được đọc lại và đối chiếu từng ô: file Excel, PDF của danh sách (BM03) có đúng tiêu đề, mã mẫu, 11 cột; số dòng, thứ tự mã SV và nội dung từng dòng khớp với danh sách trên trang; có dòng tổng, người xuất, thời điểm và số trang. Xuất toàn trường cho đủ 990 sinh viên, không bị cắt theo trang 20 dòng. File thống kê (BM04) khớp từng dòng và dòng tổng cộng với bảng trên trang (TC141, TC142, TC147, TC148, TC149).
 
 ## 4.5. Kiểm thử chức năng
 
-Bộ kiểm thử được xây dựng từ đặc tả Use Case ở mục 3.1.5: mỗi luồng sự kiện chính và mỗi luồng thay thế (4a, 4b, …) có ít nhất một ca, cộng thêm các ca cho quy tắc nghiệp vụ, nhập Excel và yêu cầu phi chức năng NFR-01 – NFR-03. Cột "UC / FR" ghi nhánh đặc tả mà ca kiểm tra (ví dụ UC09-4b là luồng thay thế 4b của UC09) và yêu cầu tương ứng.
+Bộ kiểm thử được xây dựng từ đặc tả Use Case ở mục 3.1.5: mỗi luồng sự kiện chính và mỗi luồng thay thế (4a, 4b, …) có ít nhất một ca, cộng thêm các ca cho quy tắc nghiệp vụ, nhập Excel, đối chiếu nội dung file xuất với mẫu BM03, BM04 và yêu cầu phi chức năng NFR-01 – NFR-03, NFR-06. Cột "UC / FR" ghi nhánh đặc tả mà ca kiểm tra (ví dụ UC09-4b là luồng thay thế 4b của UC09) và yêu cầu tương ứng.
 
-Nhóm chạy 140 ca ngày 11/11/2026 trên bản build từ nhánh main, với một CSDL thử riêng được seed lại từ đầu (1.000 sinh viên). Các ca được thực hiện tự động trên trình duyệt Microsoft Edge (chế độ headless) qua giao thức DevTools: thao tác trên giao diện như người dùng, gọi trực tiếp các API Ajax để thử đường vượt quyền và dữ liệu sai, dùng thêm một trình duyệt thứ hai cho các ca cần hai phiên đăng nhập cùng lúc. Kết quả: 139/140 ca đạt.
+Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main, với một CSDL thử riêng được seed lại từ đầu (1.000 sinh viên). Các ca được thực hiện tự động trên trình duyệt Microsoft Edge (chế độ headless) qua giao thức DevTools: thao tác trên giao diện như người dùng, gọi trực tiếp các API Ajax để thử đường vượt quyền và dữ liệu sai, dùng thêm một trình duyệt thứ hai cho các ca cần hai phiên đăng nhập cùng lúc. File Excel, PDF xuất ra được đọc lại bằng thư viện openpyxl và PyMuPDF để so từng ô. Kiểm thử tải dùng một chương trình Node.js tạo nhiều người dùng ảo gửi yêu cầu song song. Ca hết phiên được chờ thật hơn 30 phút. Toàn bộ 140 ca chức năng được chạy lại trên Google Chrome. Kết quả: 154/156 ca đạt.
 
 | **Nhóm** | **Use Case / yêu cầu** | **Số ca** | **Đạt** |
 |----|----|:--:|:--:|
 | Tài khoản, xác thực, phân quyền | UC01 – UC08 | 36 | 36 |
 | Hồ sơ và tài khoản sinh viên | UC09 – UC16 | 47 | 46 |
-| Danh sách, tìm kiếm, danh mục | UC17 – UC19 | 24 | 24 |
-| Thống kê, xuất, nhập Excel, nhật ký | UC20 – UC24 | 25 | 25 |
-| Bảo mật và phi chức năng | FR-08, NFR-01 – NFR-03 | 8 | 8 |
-| Tổng |  | 140 | 139 |
+| Danh sách, tìm kiếm, danh mục | UC17 – UC19 | 25 | 24 |
+| Thống kê, xuất, nhập Excel, nhật ký | UC20 – UC24 | 34 | 34 |
+| Bảo mật và phi chức năng | FR-08, NFR-01 – NFR-03, NFR-06 | 14 | 14 |
+| Tổng |  | 156 | 154 |
 
 <table>
 <thead>
@@ -4651,8 +4656,7 @@ Nhóm chạy 140 ca ngày 11/11/2026 trên bản build từ nhánh main, với m
 </tr>
 <tr>
 <td>TC133</td>
-<td><p>NFR-01</p>
-<p>NFR-01</p></td>
+<td>NFR-01</td>
 <td>Gửi POST /Students/Create thiếu token anti-forgery</td>
 <td>Từ chối (HTTP 400)</td>
 <td>HTTP 400</td>
@@ -4660,8 +4664,7 @@ Nhóm chạy 140 ca ngày 11/11/2026 trên bản build từ nhánh main, với m
 </tr>
 <tr>
 <td>TC134</td>
-<td><p>NFR-01</p>
-<p>NFR-01</p></td>
+<td>NFR-01</td>
 <td>Kiểm tra cờ cookie xác thực</td>
 <td>HttpOnly, Secure, không lưu lâu dài</td>
 <td>HttpOnly có, Secure có, phiên trình duyệt có</td>
@@ -4669,8 +4672,7 @@ Nhóm chạy 140 ca ngày 11/11/2026 trên bản build từ nhánh main, với m
 </tr>
 <tr>
 <td>TC135</td>
-<td><p>NFR-01</p>
-<p>NFR-01</p></td>
+<td>NFR-01</td>
 <td>Kiểm tra cột PasswordHash trong CSDL</td>
 <td>Mọi mật khẩu được băm (định dạng Identity v3), không lưu bản rõ</td>
 <td>1022/1022 tài khoản có hash dạng AQAAAA...</td>
@@ -4696,8 +4698,7 @@ Nhóm chạy 140 ca ngày 11/11/2026 trên bản build từ nhánh main, với m
 </tr>
 <tr>
 <td>TC138</td>
-<td><p>NFR-02</p>
-<p>NFR-02</p></td>
+<td>NFR-02</td>
 <td>Đo thời gian phản hồi danh sách và thống kê với khoảng 1.000 sinh viên (Admin)</td>
 <td>Mọi yêu cầu dưới 2 giây</td>
 <td>Lâu nhất (trong 5 lần) của 4 API: 15 ms, 10 ms, 4 ms, 10 ms</td>
@@ -4705,8 +4706,7 @@ Nhóm chạy 140 ca ngày 11/11/2026 trên bản build từ nhánh main, với m
 </tr>
 <tr>
 <td>TC139</td>
-<td><p>NFR-03</p>
-<p>NFR-03</p></td>
+<td>NFR-03</td>
 <td>Mở danh sách sinh viên trên điện thoại 390 px</td>
 <td>Không cuộn ngang toàn trang; menu thu gọn trên điện thoại</td>
 <td>Chiều rộng trang 390 px; menu: none</td>
@@ -4714,22 +4714,166 @@ Nhóm chạy 140 ca ngày 11/11/2026 trên bản build từ nhánh main, với m
 </tr>
 <tr>
 <td>TC140</td>
-<td><p>NFR-03</p>
-<p>NFR-03</p></td>
+<td>NFR-03</td>
 <td>Mở danh sách sinh viên trên máy tính bảng 768 px</td>
 <td>Không cuộn ngang toàn trang; menu thu gọn trên điện thoại</td>
 <td>Chiều rộng trang 768 px; menu: block</td>
 <td>Đạt</td>
 </tr>
+<tr>
+<td>TC141</td>
+<td><p>UC21</p>
+<p>FR-28</p></td>
+<td>Đối chiếu file Excel BM03 – lọc lớp CNTT23A</td>
+<td>Đúng tiêu đề, mã mẫu, 11 cột theo BM03; số dòng, thứ tự mã SV và nội dung từng dòng khớp danh sách trên trang; có dòng tổng, người xuất, thời điểm</td>
+<td>32 dòng dữ liệu (API 32); cột đúng mẫu; thứ tự mã SV khớp: có; nội dung khớp: có; "Tổng số: 32 sinh viên"; tên file DanhSachSinhVien_20261112_0622.xlsx</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC142</td>
+<td><p>UC21</p>
+<p>FR-28</p></td>
+<td>Đối chiếu file PDF BM03 – lọc lớp CNTT23A</td>
+<td>Đúng tiêu đề, mã mẫu, cột BM03; đủ mọi mã SV của file Excel; dòng tổng; số trang "Trang x/y" ở mọi trang</td>
+<td>2 trang; thiếu 0 mã SV; số trang ở mọi trang: có; tổng số đúng: có</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC143</td>
+<td><p>UC21</p>
+<p>FR-28</p></td>
+<td>Đối chiếu file Excel BM03 – từ khóa "nguyen", khoa CNTT</td>
+<td>Đúng tiêu đề, mã mẫu, 11 cột theo BM03; số dòng, thứ tự mã SV và nội dung từng dòng khớp danh sách trên trang; có dòng tổng, người xuất, thời điểm</td>
+<td>12 dòng dữ liệu (API 12); cột đúng mẫu; thứ tự mã SV khớp: có; nội dung khớp: có; "Tổng số: 12 sinh viên"; tên file DanhSachSinhVien_20261112_0622.xlsx</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC144</td>
+<td><p>UC21</p>
+<p>FR-28</p></td>
+<td>Đối chiếu file PDF BM03 – từ khóa "nguyen", khoa CNTT</td>
+<td>Đúng tiêu đề, mã mẫu, cột BM03; đủ mọi mã SV của file Excel; dòng tổng; số trang "Trang x/y" ở mọi trang</td>
+<td>1 trang; thiếu 0 mã SV; số trang ở mọi trang: có; tổng số đúng: có</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC145</td>
+<td><p>UC21</p>
+<p>FR-28</p></td>
+<td>Đối chiếu file Excel BM03 – khoa QTKD, khóa K2024, Bảo lưu</td>
+<td>Đúng tiêu đề, mã mẫu, 11 cột theo BM03; số dòng, thứ tự mã SV và nội dung từng dòng khớp danh sách trên trang; có dòng tổng, người xuất, thời điểm</td>
+<td>5 dòng dữ liệu (API 5); cột đúng mẫu; thứ tự mã SV khớp: có; nội dung khớp: có; "Tổng số: 5 sinh viên"; tên file DanhSachSinhVien_20261112_0622.xlsx</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC146</td>
+<td><p>UC21</p>
+<p>FR-28</p></td>
+<td>Đối chiếu file PDF BM03 – khoa QTKD, khóa K2024, Bảo lưu</td>
+<td>Đúng tiêu đề, mã mẫu, cột BM03; đủ mọi mã SV của file Excel; dòng tổng; số trang "Trang x/y" ở mọi trang</td>
+<td>1 trang; thiếu 0 mã SV; số trang ở mọi trang: có; tổng số đúng: có</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC147</td>
+<td><p>UC21</p>
+<p>FR-28</p></td>
+<td>Xuất toàn bộ danh sách (Admin, không lọc)</td>
+<td>File chứa toàn bộ sinh viên, không bị cắt theo trang 20 dòng; PDF tự sang trang có số trang</td>
+<td>Excel 990 dòng / API 990; PDF 33 trang, trang cuối ghi "Trang 33/33": có</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC148</td>
+<td><p>UC22</p>
+<p>FR-29</p></td>
+<td>Đối chiếu file Excel và PDF BM04 – theo lớp, khoa CNTT</td>
+<td>Đúng tiêu đề, mã mẫu, cột BM04; từng dòng và dòng tổng cộng khớp bảng thống kê trên trang; mỗi dòng Đang học + Bảo lưu + Đã tốt nghiệp + Thôi học = Tổng</td>
+<td>8 dòng + tổng cộng; Excel khớp: có; cộng ngang đúng: có; PDF khớp: có; tên file ThongKeSinhVien_20261112_0622.xlsx, ThongKeSinhVien_20261112_0622.pdf</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC149</td>
+<td><p>UC22</p>
+<p>FR-29</p></td>
+<td>Đối chiếu file Excel và PDF BM04 – theo khoa, toàn trường</td>
+<td>Đúng tiêu đề, mã mẫu, cột BM04; từng dòng và dòng tổng cộng khớp bảng thống kê trên trang; mỗi dòng Đang học + Bảo lưu + Đã tốt nghiệp + Thôi học = Tổng</td>
+<td>4 dòng + tổng cộng; Excel khớp: có; cộng ngang đúng: có; PDF khớp: có; tên file ThongKeSinhVien_20261112_0622.xlsx, ThongKeSinhVien_20261112_0622.pdf</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC150</td>
+<td><p>UC18</p>
+<p>FR-22</p></td>
+<td>Tìm "duc giang" và "Vương Đức Giang" (chữ Đ tiếng Việt) để ra hồ sơ "Vương Ðức Giang" trong dữ liệu mẫu (chữ Ð U+00D0)</td>
+<td>Tìm thấy hồ sơ 22010993</td>
+<td>"duc giang": 0 kết quả; "Vương Đức Giang": 0 kết quả; tìm "vuong" thấy hồ sơ: 22010993 Vương Ðức Giang</td>
+<td>Không đạt</td>
+</tr>
+<tr>
+<td>TC151</td>
+<td>NFR-02</td>
+<td>Kiểm thử tải: 10 người dùng đồng thời trong 30 giây gọi danh sách, tìm kiếm, thống kê, chi tiết</td>
+<td>Không có yêu cầu lỗi; thời gian phản hồi p95 dưới 2 giây</td>
+<td>38.562 yêu cầu (1285,4 yêu cầu/giây), 0 lỗi; p50 6 ms, p95 11 ms, lâu nhất 288 ms</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC152</td>
+<td>NFR-02</td>
+<td>Kiểm thử tải: 25 người dùng đồng thời trong 30 giây gọi danh sách, tìm kiếm, thống kê, chi tiết</td>
+<td>Không có yêu cầu lỗi; thời gian phản hồi p95 dưới 2 giây</td>
+<td>45.450 yêu cầu (1515/giây), 0 lỗi; p50 11 ms, p95 21 ms, lâu nhất 396 ms</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC153</td>
+<td>NFR-02</td>
+<td>Kiểm thử tải: 50 người dùng đồng thời trong 30 giây gọi danh sách, tìm kiếm, thống kê, chi tiết</td>
+<td>Không có yêu cầu lỗi; thời gian phản hồi p95 dưới 2 giây</td>
+<td>48.937 yêu cầu (1631,2 yêu cầu/giây), 0 lỗi; p50 21 ms, p95 47 ms, lâu nhất 474 ms</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC154</td>
+<td><p>NFR-01</p>
+<p>NFR-01, FR-07</p></td>
+<td>Đăng nhập rồi để yên không thao tác 31,5 phút</td>
+<td>Hết phiên: API trả 401, mở trang bị chuyển về trang đăng nhập</td>
+<td>Sau 31,6 phút: API HTTP 401; mở /Students: /Account/Login</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC155</td>
+<td>NFR-01</td>
+<td>Đăng nhập, thao tác mỗi 10 phút (phút 10, 20, 30), kiểm tra ở phút 31,5</td>
+<td>Phiên được gia hạn theo thao tác (sliding), vẫn còn đăng nhập</td>
+<td>Thao tác phút 10/20/30: HTTP 200/200/200; mở /Students ở phút 31,6: /Students</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC156</td>
+<td>NFR-06</td>
+<td>Chạy lại toàn bộ 140 ca TC001 – TC140 trên Google Chrome</td>
+<td>Kết quả giống trên Microsoft Edge</td>
+<td>Chrome: 139/140 ca đạt; kết quả từng ca giống Edge: có</td>
+<td>Đạt</td>
+</tr>
 </tbody>
 </table>
 
+Kết quả kiểm thử tải (máy phát triển, ứng dụng và chương trình tạo tải chạy trên cùng một máy, CSDL LocalDB):
+
+| **Người dùng đồng thời** | **Số yêu cầu / 30 giây** | **Yêu cầu / giây** | **Lỗi** | **p50 (ms)** | **p95 (ms)** | **Lâu nhất (ms)** |
+|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| 10 | 38.562 | 1285,4 | 0 | 6 | 11 | 288 |
+| 25 | 45.450 | 1515 | 0 | 11 | 21 | 396 |
+| 50 | 48.937 | 1631,2 | 0 | 21 | 47 | 474 |
+
 Phạm vi kiểm thử còn thiếu:
 
-- Mới kiểm thử trên Edge (nhân Chromium); chưa chạy trên Firefox như NFR-06 yêu cầu.
-- Chưa kiểm thử hết phiên sau 30 phút không thao tác, vì cần chờ đủ thời gian hoặc đổi cấu hình cookie của bản chạy thử.
-- Thời gian phản hồi đo trên máy phát triển với CSDL LocalDB, chưa đo trên máy demo hay dưới tải nhiều người dùng đồng thời.
-- File Excel/PDF xuất ra mới được kiểm tra tên file, kiểu file và dung lượng; chưa đối chiếu từng ô với mẫu BM03, BM04.
+- Chưa kiểm thử trên Firefox (NFR-06) vì máy kiểm thử chưa cài Firefox; mới chạy trên Edge và Chrome, cùng nhân Chromium.
+- Kiểm thử tải chạy trên máy phát triển, chưa chạy trên máy demo hay máy chủ triển khai thật.
 - Mã nguồn chưa có project kiểm thử đơn vị hoặc kiểm thử tích hợp chạy tự động trong quy trình build.
 
 ## 4.6. Đáp ứng các yêu cầu
@@ -4753,7 +4897,7 @@ Bảng sau đối chiếu các yêu cầu kỹ thuật của bài tập lớn (m
 | **Mục tiêu** | **Kết quả** | **Minh chứng** |
 |----|----|----|
 | MT1: CSDL tập trung, mã SV duy nhất, hồ sơ và tài khoản cùng giao dịch, xóa mềm, kiểm soát chuyển trạng thái và chuyển lớp | Đạt. Riêng trường hợp hai yêu cầu thêm cùng mã đến đồng thời trả lỗi 500 thay vì 409 (TC045), dữ liệu vẫn nhất quán | Các ca UC09 – UC16, UC19 |
-| MT2: Danh sách, tìm kiếm không dấu bằng Ajax, thống kê, xuất Excel/PDF, nhập Excel có báo lỗi từng dòng | Đạt | Các ca UC17, UC18, UC20 – UC23 |
+| MT2: Danh sách, tìm kiếm không dấu bằng Ajax, thống kê, xuất Excel/PDF, nhập Excel có báo lỗi từng dòng | Đạt. Riêng tìm kiếm bỏ sót họ tên viết bằng chữ Ð (U+00D0) có trong 71 hồ sơ mẫu (TC150) | Các ca UC17, UC18, UC20 – UC23 |
 | MT3: Identity, ba vai trò, phạm vi theo khoa ở mọi endpoint, nhật ký thao tác, chống dò mật khẩu | Đạt | Các ca UC01 – UC08, UC24, NFR-01 |
 | MT4: Cổng sinh viên xem hồ sơ, cập nhật liên hệ, đổi mật khẩu; giao diện responsive | Đạt | Các ca UC03 – UC05, NFR-03 |
 
@@ -4761,7 +4905,7 @@ Bảng sau đối chiếu các yêu cầu kỹ thuật của bài tập lớn (m
 
 - Xây dựng ứng dụng web Student Portal trên ASP.NET Core MVC đáp ứng 31/31 yêu cầu chức năng FR-01 – FR-31 của SRS, gồm 11 Controller, 9 dịch vụ (trong đó 3 dịch vụ dùng chung: phạm vi dữ liệu, tài khoản, nhật ký) và 9 file script riêng cho từng trang; mỗi FR đều có ít nhất một ca kiểm thử ở mục 4.5.
 - Phân quyền ba vai trò, phạm vi dữ liệu theo khoa áp dụng thống nhất ở tầng dịch vụ, kể cả xuất và nhập file.
-- Bộ 140 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 139 ca đạt; phát hiện và ghi nhận một lỗi xử lý đồng thời ở FR-13.
+- Bộ 156 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 154 ca đạt; phát hiện và ghi nhận hai lỗi: xử lý đồng thời ở FR-13 và tìm kiếm chữ Ð ở FR-22.
 - Quy trình làm việc nhóm theo mã yêu cầu: tên nhánh và commit gắn FR/NFR, gộp qua Pull Request, kiểm tra chất lượng bằng SonarCloud Quality Gate.
 - Bộ tài liệu phân tích – thiết kế (Chương 2, 3) bám sát mã nguồn: tên Controller/Action, interface dùng chung, quy ước JSON và cấu trúc CSDL trong mã đúng với mục 3.2.
 
@@ -4770,13 +4914,14 @@ Bảng sau đối chiếu các yêu cầu kỹ thuật của bài tập lớn (m
 - Thêm cùng một mã sinh viên đồng thời từ hai yêu cầu trả HTTP 500 (TC045). Cách khắc phục: trong StudentService.CreateAsync bắt DbUpdateException có SqlException số 2627/2601 (trùng khóa) và chuyển thành NghiepVuException 409 "Mã sinh viên đã tồn tại"; áp dụng tương tự cho tạo tài khoản và danh mục.
 - Chu kỳ hỗ trợ của .NET 8 kết thúc ngày 10/11/2026. Trước khi triển khai thật cần nâng TargetFramework, các gói EF Core/Identity và global.json lên .NET 10, bản hỗ trợ dài hạn hiện hành.
 - Chưa có kiểm thử đơn vị và kiểm thử tích hợp trong solution; bộ kiểm thử ở mục 4.5 chạy ngoài quy trình build.
-- Chưa kiểm thử trên Firefox, chưa kiểm thử hết phiên 30 phút; thời gian phản hồi mới đo trên máy phát triển.
+- Tìm kiếm không dấu bỏ sót họ tên viết bằng chữ Ð (U+00D0) thay cho Đ (U+0110); dữ liệu mẫu có 71 hồ sơ như vậy (TC150). Cách khắc phục: trong TextHelper.BoDau đổi thêm ð thành d (sau ToLowerInvariant, Ð thành ð); khi lưu hồ sơ và khi nhập Excel, chuẩn hóa Ð thành Đ trong họ tên; sửa dữ liệu mẫu trong DbSeeder; tính lại cột HoTenKhongDau cho dữ liệu đã có.
+- Chưa kiểm thử trên Firefox; kiểm thử tải mới chạy trên máy phát triển.
 - Không có chức năng khôi phục mật khẩu qua email; người dùng quên mật khẩu phải liên hệ Admin hoặc Giáo vụ (theo phạm vi SRS).
 - Chưa có quản lý điểm, đăng ký học phần, tuyển sinh (ngoài phạm vi đề tài).
 
 ## 5.4. Hướng phát triển
 
-- Khắc phục lỗi xử lý đồng thời ở FR-13; nâng cấp lên .NET 10.
+- Khắc phục lỗi xử lý đồng thời ở FR-13 và lỗi tìm kiếm chữ Ð ở FR-22; nâng cấp lên .NET 10.
 - Bổ sung project kiểm thử (xUnit) cho các quy tắc nghiệp vụ trong StudentService, ImportService, ScopeService và đưa bộ kiểm thử giao diện vào GitHub Actions.
 - Khôi phục mật khẩu qua email/OTP; đăng nhập một lần (SSO) với hệ thống của trường.
 - Biểu đồ thống kê trực quan trên trang Thống kê; lịch sử biến động hồ sơ theo từng sinh viên.

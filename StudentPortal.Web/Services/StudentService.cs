@@ -44,7 +44,7 @@ namespace StudentPortal.Services
             if (await _students.QueryIncludingDeleted().AnyAsync(s => s.MaSV == maSV))
                 throw new NghiepVuException("Mã sinh viên đã tồn tại", StatusCodes.Status409Conflict);
 
-            var hoTen = dto.HoTen.Trim();
+            var hoTen = TextHelper.ChuanHoaHoTen(dto.HoTen);
             await using var tx = await _context.Database.BeginTransactionAsync();
 
             _students.Add(new SinhVien
@@ -61,7 +61,12 @@ namespace StudentPortal.Services
                 TrangThai = dto.TrangThai
             });
             await _auditLog.LogAsync("TaoHoSo", LoaiSinhVien, maSV);
-            await _students.SaveChangesAsync();
+            // Hai yêu cầu cùng mã cùng qua bước kiểm tra trên: yêu cầu sau bị CSDL chặn bằng khóa chính
+            try { await _students.SaveChangesAsync(); }
+            catch (DbUpdateException ex) when (DbLoi.LaTrungKhoa(ex))
+            {
+                throw new NghiepVuException("Mã sinh viên đã tồn tại", StatusCodes.Status409Conflict);
+            }
 
             // Lỗi tạo tài khoản: giao dịch chưa commit nên hồ sơ cũng bị hủy (FR-13)
             var taoTaiKhoan = await _account.CreateStudentAccountAsync(maSV, dto.MatKhau);
@@ -320,7 +325,7 @@ namespace StudentPortal.Services
 
         private static void GanThongTinBatBuoc(SinhVien sv, StudentEditVm dto)
         {
-            var hoTen = dto.HoTen.Trim();
+            var hoTen = TextHelper.ChuanHoaHoTen(dto.HoTen);
             sv.HoTen = hoTen;
             sv.HoTenKhongDau = TextHelper.BoDau(hoTen);
             sv.NgaySinh = dto.NgaySinh!.Value.Date;

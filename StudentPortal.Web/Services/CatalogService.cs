@@ -95,7 +95,7 @@ namespace StudentPortal.Services
 
             _khoas.Add(new Khoa { MaKhoa = maKhoa, TenKhoa = dto.TenKhoa.Trim() });
             await _auditLog.LogAsync(ThemDanhMuc, LoaiKhoa, maKhoa);
-            await _khoas.SaveChangesAsync();
+            await LuuDanhMucMoiAsync($"Mã khoa '{maKhoa}' đã tồn tại hoặc đã từng được sử dụng.");
         }
 
         public async Task UpdateFacultyAsync(FacultyEditVm dto)
@@ -153,7 +153,7 @@ namespace StudentPortal.Services
 
             _khoaHocs.Add(new KhoaHoc { MaKhoaHoc = maKhoaHoc, NamNhapHoc = nam });
             await _auditLog.LogAsync(ThemDanhMuc, LoaiKhoaHoc, maKhoaHoc);
-            await _khoas.SaveChangesAsync();
+            await LuuDanhMucMoiAsync($"Mã khóa '{maKhoaHoc}' đã tồn tại hoặc đã từng được sử dụng.");
         }
 
         public async Task UpdateCourseAsync(CourseEditVm dto)
@@ -220,7 +220,17 @@ namespace StudentPortal.Services
 
             _lops.Add(new Lop { MaLop = maLop, TenLop = tenLop, MaKhoa = dto.MaKhoa, MaKhoaHoc = dto.MaKhoaHoc });
             await _auditLog.LogAsync(ThemDanhMuc, LoaiLop, maLop);
-            await _khoas.SaveChangesAsync();
+            await LuuDanhMucMoiAsync($"Mã lớp '{maLop}' hoặc tên lớp '{tenLop}' đã tồn tại.");
+        }
+
+        // Thêm danh mục đồng thời cùng mã: yêu cầu sau bị CSDL chặn, trả 409 thay vì 500
+        private async Task LuuDanhMucMoiAsync(string thongBaoTrung)
+        {
+            try { await _khoas.SaveChangesAsync(); }
+            catch (DbUpdateException ex) when (DbLoi.LaTrungKhoa(ex))
+            {
+                throw new NghiepVuException(thongBaoTrung, StatusCodes.Status409Conflict);
+            }
         }
 
         public async Task UpdateClassAsync(ClassEditVm dto)

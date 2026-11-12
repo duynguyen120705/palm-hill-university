@@ -13,16 +13,21 @@ namespace StudentPortal.Infrastructure
 
         private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(200);
 
-        // Bỏ dấu tiếng Việt, chữ thường, đ -> d, gộp khoảng trắng
+        // Bỏ dấu tiếng Việt, chữ thường, đ -> d, gộp khoảng trắng.
+        // ð (U+00F0, chữ thường của Ð U+00D0) hay bị gõ/sinh nhầm thay cho đ nên cũng đổi thành d
         public static string BoDau(string? s)
         {
             if (string.IsNullOrWhiteSpace(s)) return "";
-            var chuan = s.Trim().ToLowerInvariant().Replace('đ', 'd').Normalize(NormalizationForm.FormD);
+            var chuan = s.Trim().ToLowerInvariant().Replace('đ', 'd').Replace('ð', 'd').Normalize(NormalizationForm.FormD);
             var sb = new StringBuilder();
             foreach (var c in chuan)
                 if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
             return Regex.Replace(sb.ToString(), @"\s+", " ", RegexOptions.None, RegexTimeout);
         }
+
+        // Chuẩn hóa họ tên trước khi lưu: Ð/ð (chữ Eth) -> Đ/đ tiếng Việt
+        public static string ChuanHoaHoTen(string? s) =>
+            (s ?? "").Trim().Replace('Ð', 'Đ').Replace('ð', 'đ');
 
         public static string CatChuoi(string s, int max) => s.Length <= max ? s : s[..max];
     }

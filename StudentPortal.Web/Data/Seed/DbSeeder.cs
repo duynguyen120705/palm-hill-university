@@ -41,6 +41,7 @@ namespace StudentPortal.Data.Seed
                 if (!await roleManager.RoleExistsAsync(role))
                     await roleManager.CreateAsync(new IdentityRole(role));
 
+            await ChuanHoaHoTenDaCoAsync(db);
             if (await db.Users.AnyAsync()) return; // đã có dữ liệu thì bỏ qua
 
             var hasher = new PasswordHasher<ApplicationUser>();
@@ -111,6 +112,20 @@ namespace StudentPortal.Data.Seed
             return lops;
         }
 
+        // Sửa dữ liệu đã seed trước đây: họ tên chứa Ð/ð và cột HoTenKhongDau còn chữ ð (FR-22). Chạy lại nhiều lần không đổi kết quả
+        private static async Task ChuanHoaHoTenDaCoAsync(AppDbContext db)
+        {
+            var canSua = await db.SinhViens.IgnoreQueryFilters()
+                .Where(s => s.HoTen.Contains("Ð") || s.HoTen.Contains("ð") || s.HoTenKhongDau.Contains("ð"))
+                .ToListAsync();
+            foreach (var sv in canSua)
+            {
+                sv.HoTen = TextHelper.ChuanHoaHoTen(sv.HoTen);
+                sv.HoTenKhongDau = TextHelper.BoDau(sv.HoTen);
+            }
+            if (canSua.Count > 0) await db.SaveChangesAsync();
+        }
+
         private static List<SinhVien> TaoSinhVien(List<Lop> lops)
         {
             // Seed cố định để dữ liệu mẫu giống nhau giữa các máy
@@ -123,7 +138,8 @@ namespace StudentPortal.Data.Seed
                 var nam = int.Parse(lop.MaKhoaHoc[1..]);
                 var maKhoaSo = Array.FindIndex(DanhSachKhoa, k => k.Ma == lop.MaKhoa) + 1;
                 var gioiTinh = f.PickRandom(GioiTinh.Nam, GioiTinh.Nu);
-                var hoTen = f.Name.LastName() + " " + f.Name.FirstName();
+                // Dữ liệu tiếng Việt của Bogus có tên viết bằng Ð (U+00D0) thay cho Đ (FR-22)
+                var hoTen = TextHelper.ChuanHoaHoTen(f.Name.LastName() + " " + f.Name.FirstName());
                 var trangThai = f.Random.WeightedRandom(
                     new[] { TrangThaiHocTap.DangHoc, TrangThaiHocTap.BaoLuu, TrangThaiHocTap.DaTotNghiep, TrangThaiHocTap.ThoiHoc },
                     new[] { 0.70f, 0.10f, 0.12f, 0.08f });

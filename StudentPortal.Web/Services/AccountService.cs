@@ -281,6 +281,11 @@ namespace StudentPortal.Services
             {
                 return Result.Fail(ex.Message, ex.StatusCode, ex.Truong);
             }
+            // Tạo tài khoản đồng thời cùng tên đăng nhập: unique index của Identity chặn yêu cầu sau
+            catch (DbUpdateException ex) when (DbLoi.LaTrungKhoa(ex))
+            {
+                return Result.Fail("Tên đăng nhập đã tồn tại.", StatusCodes.Status409Conflict);
+            }
         }
 
         // Tài khoản Admin/Giáo vụ kèm vai trò; tài khoản sinh viên quản lý ở FR-19, FR-20

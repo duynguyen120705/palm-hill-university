@@ -2977,7 +2977,7 @@ public IQueryable<SinhVien> ApplyStudentScope(IQueryable<SinhVien> query)
 
 ### 4.1.6. Đánh giá
 
-Mục 4.5 có 36 ca của UC01 – UC08, tất cả đều đạt. Một số kết quả tiêu biểu:
+Mục 4.5 có 37 ca của UC01 – UC08, tất cả đều đạt. Một số kết quả tiêu biểu:
 
 - Sai tên đăng nhập, sai mật khẩu hay tài khoản bị khóa đều nhận cùng một thông báo; returnUrl trỏ ra ngoài bị bỏ qua (TC004, TC005, TC007).
 - Admin khóa tài khoản Giáo vụ đang đăng nhập ở trình duyệt khác: phiên đó bị đăng xuất ngay ở yêu cầu kế tiếp (TC034).
@@ -3131,10 +3131,16 @@ public async Task CreateAsync(StudentCreateVm dto)
         throw new NghiepVuException("Mã sinh viên đã tồn tại", StatusCodes.Status409Conflict);
 
     await using var tx = await _context.Database.BeginTransactionAsync();
-    _students.Add(new SinhVien { MaSV = maSV, HoTen = dto.HoTen.Trim(),
-        HoTenKhongDau = TextHelper.BoDau(dto.HoTen), /* ... */ TrangThai = dto.TrangThai });
+    var hoTen = TextHelper.ChuanHoaHoTen(dto.HoTen);       // Ð/ð -> Đ/đ (FR-22)
+    _students.Add(new SinhVien { MaSV = maSV, HoTen = hoTen,
+        HoTenKhongDau = TextHelper.BoDau(hoTen), /* ... */ TrangThai = dto.TrangThai });
     await _auditLog.LogAsync("TaoHoSo", LoaiSinhVien, maSV);
-    await _students.SaveChangesAsync();
+    // Hai yêu cầu cùng mã cùng qua bước kiểm tra trên: yêu cầu sau bị CSDL chặn bằng khóa chính
+    try { await _students.SaveChangesAsync(); }
+    catch (DbUpdateException ex) when (DbLoi.LaTrungKhoa(ex))   // SqlException 2627/2601
+    {
+        throw new NghiepVuException("Mã sinh viên đã tồn tại", StatusCodes.Status409Conflict);
+    }
 
     var taoTaiKhoan = await _account.CreateStudentAccountAsync(maSV, dto.MatKhau);
     if (!taoTaiKhoan.Succeeded)                           // chưa commit: hồ sơ bị hủy theo
@@ -3147,14 +3153,14 @@ public async Task CreateAsync(StudentCreateVm dto)
 
 ### 4.2.6. Đánh giá
 
-Mục 4.5 có 47 ca của UC09 – UC16, 46/47 ca đạt, gồm thêm hồ sơ, xem, sửa, đổi trạng thái, chuyển lớp, xóa mềm, cấp lại mật khẩu và khóa tài khoản sinh viên. Một số kết quả tiêu biểu:
+Mục 4.5 có 47 ca của UC09 – UC16, tất cả đều đạt, gồm thêm hồ sơ, xem, sửa, đổi trạng thái, chuyển lớp, xóa mềm, cấp lại mật khẩu và khóa tài khoản sinh viên. Một số kết quả tiêu biểu:
 
 - Trùng mã, kể cả mã của hồ sơ đã xóa mềm, nhận HTTP 409; dữ liệu sai gửi thẳng lên server nhận HTTP 400 kèm lỗi từng trường (TC040, TC074, TC041).
 - Khi tạo tài khoản lỗi (mã SV trùng tên đăng nhập của một Giáo vụ), giao dịch bị hủy và không có hồ sơ nào được lưu (TC043).
 - Chuyển sang Thôi học thì tài khoản bị khóa; Admin chuyển Thôi học về Đang học thì tài khoản vẫn khóa, chỉ mở bằng tay (TC056, TC059).
 - Giáo vụ chỉ xóa mềm được hồ sơ Đang học, chưa từng đăng nhập và chưa có biến động; các trường hợp khác bị chặn kèm lý do (TC067, TC069, TC070, TC071).
 
-Ca TC045 chưa đạt: khi hai yêu cầu thêm cùng một mã mới đến máy chủ gần như đồng thời, cả hai cùng qua bước kiểm tra trùng, yêu cầu đến sau vi phạm khóa chính và nhận HTTP 500 thay vì 409. Dữ liệu vẫn đúng (chỉ một hồ sơ được lưu), và giao diện đã khóa nút Lưu trong lúc gửi nên người dùng thao tác bình thường khó gặp lỗi này. Cách khắc phục được nêu ở mục 5.3.
+Lần chạy đầu, ca TC045 chưa đạt: khi hai yêu cầu thêm cùng một mã mới đến máy chủ gần như đồng thời, cả hai cùng qua bước kiểm tra trùng, yêu cầu đến sau vi phạm khóa chính và nhận HTTP 500 thay vì 409 (dữ liệu vẫn đúng, chỉ một hồ sơ được lưu). Nhóm đã sửa: StudentService.CreateAsync bắt DbUpdateException do trùng khóa (SqlException số 2627/2601, hàm DbLoi.LaTrungKhoa) và trả NghiepVuException 409 "Mã sinh viên đã tồn tại"; cách xử lý này áp dụng cho cả tạo tài khoản (AccountService) và thêm danh mục (CatalogService). Chạy lại trên bản đã sửa: HTTP 200 và 409; số hồ sơ: 1 (TC045); thêm đồng thời Khoa, Khóa, Lớp và tài khoản Giáo vụ cùng mã đều chỉ một yêu cầu thành công, yêu cầu còn lại nhận 409 hoặc thông báo trùng (TC158, TC159, TC160, TC161).
 
 ## 4.3. Danh sách và tìm kiếm sinh viên không dấu bằng Ajax – Nguyễn Hoàng Quốc Duy
 
@@ -3274,19 +3280,24 @@ public IQueryable<SinhVien> BuildQuery(StudentFilter filter)
 public static string BoDau(string? s)
 {
     if (string.IsNullOrWhiteSpace(s)) return "";
-    var chuan = s.Trim().ToLowerInvariant().Replace('đ', 'd').Normalize(NormalizationForm.FormD);
+    // ð (U+00F0, chữ thường của Ð U+00D0) hay bị gõ/sinh nhầm thay cho đ nên cũng đổi thành d
+    var chuan = s.Trim().ToLowerInvariant().Replace('đ', 'd').Replace('ð', 'd').Normalize(NormalizationForm.FormD);
     var sb = new StringBuilder();
     foreach (var c in chuan)
         if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
     return Regex.Replace(sb.ToString(), @"\s+", " ", RegexOptions.None, RegexTimeout);
 }
+
+// Chuẩn hóa họ tên trước khi lưu (thêm, sửa, nhập Excel, seed): Ð/ð -> Đ/đ tiếng Việt
+public static string ChuanHoaHoTen(string? s) =>
+    (s ?? "").Trim().Replace('Ð', 'Đ').Replace('ð', 'đ');
 ```
 
 ### 4.3.6. Đánh giá
 
-Mục 4.5 có 11 ca của UC17 – UC18, 10/11 ca đạt: lọc theo Khoa, Khóa, Lớp, Trạng thái, giới hạn theo phạm vi, tìm không dấu (gõ "nguyen", "NGUYỄN" cho cùng kết quả, "do" tìm ra "Đỗ"), thông báo khi không có kết quả và giới hạn 100 dòng/trang. Giao diện không cuộn ngang ở 390 px và 768 px (TC139, TC140). Với khoảng 1.000 sinh viên trên máy phát triển, thời gian phản hồi lâu nhất trong 5 lần gọi của các API danh sách, tìm kiếm, thống kê là 15 ms, 10 ms, 4 ms, 10 ms, thấp hơn nhiều so với ngưỡng 2 giây của NFR-02 (TC138).
+Mục 4.5 có 11 ca của UC17 – UC18, tất cả đều đạt: lọc theo Khoa, Khóa, Lớp, Trạng thái, giới hạn theo phạm vi, tìm không dấu (gõ "nguyen", "NGUYỄN" cho cùng kết quả, "do" tìm ra "Đỗ"), thông báo khi không có kết quả và giới hạn 100 dòng/trang. Giao diện không cuộn ngang ở 390 px và 768 px (TC139, TC140). Với khoảng 1.000 sinh viên trên máy phát triển, thời gian phản hồi lâu nhất trong 5 lần gọi của các API danh sách, tìm kiếm, thống kê là 6 ms, 4 ms, 5 ms, 12 ms, thấp hơn nhiều so với ngưỡng 2 giây của NFR-02 (TC138).
 
-Ca TC150 chưa đạt: dữ liệu mẫu có 71 hồ sơ có họ tên viết bằng chữ Ð (U+00D0, chữ Eth) thay cho chữ Đ tiếng Việt (U+0110), ví dụ "Vương Ðức Giang". Hàm TextHelper.BoDau chỉ đổi đ (U+0111) thành d, nên cột HoTenKhongDau lưu "vuong ðuc giang"; tìm "duc giang" hay "Vương Đức Giang" đều không ra hồ sơ này. Cách khắc phục được nêu ở mục 5.3.
+Lần chạy đầu, ca TC150 chưa đạt: dữ liệu mẫu (sinh bằng thư viện Bogus) có 71 hồ sơ có họ tên viết bằng chữ Ð (U+00D0, chữ Eth) thay cho chữ Đ tiếng Việt (U+0110), ví dụ "Vương Ðức Giang". Hàm TextHelper.BoDau chỉ đổi đ (U+0111) thành d, nên cột HoTenKhongDau lưu "vuong ðuc giang"; tìm "duc giang" hay "Vương Đức Giang" đều không ra hồ sơ này. Nhóm đã sửa: BoDau đổi thêm ð thành d; hàm mới TextHelper.ChuanHoaHoTen đổi Ð/ð thành Đ/đ khi thêm, sửa hồ sơ, nhập Excel và khi seed; DbSeeder khi khởi động sửa lại họ tên và cột HoTenKhongDau của dữ liệu đã có. Kiểm tra lại: CSDL đã seed bằng bản cũ có 71 hồ sơ lỗi, sau khi chạy bản đã sửa còn 0; CSDL seed mới bằng bản đã sửa không có hồ sơ nào chứa Ð; tìm kiếm cho kết quả "duc giang": 1 kết quả; "Vương Đức Giang": 1 kết quả (TC150).
 
 Kiểm thử tải với 10, 25 và 50 người dùng đồng thời, mỗi mức 30 giây, không có yêu cầu lỗi; thời gian phản hồi p95 lần lượt 11 ms, 21 ms, 47 ms (TC151, TC152, TC153).
 
@@ -3443,16 +3454,16 @@ Mục 4.5 có 29 ca của UC20 – UC23, tất cả đều đạt. Một số k�
 
 Bộ kiểm thử được xây dựng từ đặc tả Use Case ở mục 3.1.5: mỗi luồng sự kiện chính và mỗi luồng thay thế (4a, 4b, …) có ít nhất một ca, cộng thêm các ca cho quy tắc nghiệp vụ, nhập Excel, đối chiếu nội dung file xuất với mẫu BM03, BM04 và yêu cầu phi chức năng NFR-01 – NFR-03, NFR-06. Cột "UC / FR" ghi nhánh đặc tả mà ca kiểm tra (ví dụ UC09-4b là luồng thay thế 4b của UC09) và yêu cầu tương ứng.
 
-Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main, với một CSDL thử riêng được seed lại từ đầu (1.000 sinh viên). Các ca được thực hiện tự động trên trình duyệt Microsoft Edge (chế độ headless) qua giao thức DevTools: thao tác trên giao diện như người dùng, gọi trực tiếp các API Ajax để thử đường vượt quyền và dữ liệu sai, dùng thêm một trình duyệt thứ hai cho các ca cần hai phiên đăng nhập cùng lúc. File Excel, PDF xuất ra được đọc lại bằng thư viện openpyxl và PyMuPDF để so từng ô. Kiểm thử tải dùng một chương trình Node.js tạo nhiều người dùng ảo gửi yêu cầu song song. Ca hết phiên được chờ thật hơn 30 phút. Toàn bộ 140 ca chức năng được chạy lại trên Google Chrome và trên Mozilla Firefox 160 (giao thức WebDriver BiDi). Kết quả: 155/157 ca đạt.
+Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main, với một CSDL thử riêng được seed lại từ đầu (1.000 sinh viên). Các ca được thực hiện tự động trên trình duyệt Microsoft Edge (chế độ headless) qua giao thức DevTools: thao tác trên giao diện như người dùng, gọi trực tiếp các API Ajax để thử đường vượt quyền và dữ liệu sai, dùng thêm một trình duyệt thứ hai cho các ca cần hai phiên đăng nhập cùng lúc. File Excel, PDF xuất ra được đọc lại bằng thư viện openpyxl và PyMuPDF để so từng ô. Kiểm thử tải dùng một chương trình Node.js tạo nhiều người dùng ảo gửi yêu cầu song song. Ca hết phiên được chờ thật hơn 30 phút. Toàn bộ 140 ca chức năng được chạy lại trên Google Chrome và trên Mozilla Firefox 160 (giao thức WebDriver BiDi). Sau khi sửa hai lỗi ở FR-13 và FR-22 (mục 4.2.6, 4.3.6), nhóm chạy lại toàn bộ 140 ca chức năng trên cả ba trình duyệt, ca tìm kiếm chữ Ð và bổ sung các ca thêm đồng thời ở danh mục, tài khoản; bảng dưới ghi kết quả của lần chạy lại này. Các ca đối chiếu file xuất, kiểm thử tải và hết phiên chạy trên bản trước khi sửa, vì phần sửa không thay đổi các chức năng đó. Kết quả: 161/161 ca đạt.
 
 | **Nhóm** | **Use Case / yêu cầu** | **Số ca** | **Đạt** |
 |----|----|:--:|:--:|
-| Tài khoản, xác thực, phân quyền | UC01 – UC08 | 36 | 36 |
-| Hồ sơ và tài khoản sinh viên | UC09 – UC16 | 47 | 46 |
-| Danh sách, tìm kiếm, danh mục | UC17 – UC19 | 25 | 24 |
+| Tài khoản, xác thực, phân quyền | UC01 – UC08 | 37 | 37 |
+| Hồ sơ và tài khoản sinh viên | UC09 – UC16 | 47 | 47 |
+| Danh sách, tìm kiếm, danh mục | UC17 – UC19 | 28 | 28 |
 | Thống kê, xuất, nhập Excel, nhật ký | UC20 – UC24 | 34 | 34 |
 | Bảo mật và phi chức năng | FR-08, NFR-01 – NFR-03, NFR-06 | 15 | 15 |
-| Tổng |  | 157 | 155 |
+| Tổng |  | 161 | 161 |
 
 <table>
 <thead>
@@ -3868,8 +3879,8 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <p>FR-13</p></td>
 <td>Gửi đồng thời 2 yêu cầu thêm cùng mã TK26R01</td>
 <td>Một yêu cầu thành công, yêu cầu còn lại HTTP 409</td>
-<td>HTTP 200 và 500; số hồ sơ: 1</td>
-<td>Không đạt</td>
+<td>HTTP 200 và 409; số hồ sơ: 1</td>
+<td>Đạt</td>
 </tr>
 <tr>
 <td>TC046</td>
@@ -4273,7 +4284,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <p>FR-22</p></td>
 <td>Tìm "do" để ra họ "Đỗ"</td>
 <td>Có kết quả họ tên chứa "Đỗ"</td>
-<td>12 kết quả; có "Đỗ": có</td>
+<td>17 kết quả; có "Đỗ": có</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -4471,7 +4482,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <p>FR-28</p></td>
 <td>Xuất danh sách lớp CNTT23A ra Excel và PDF</td>
 <td>Tải file .xlsx, .pdf tên DanhSachSinhVien_yyyyMMdd_HHmm</td>
-<td>Excel 200, 10042 byte, DanhSachSinhVien_20261111_2224.xlsx; PDF 200, 102184 byte</td>
+<td>Excel 200, 10042 byte, DanhSachSinhVien_20261112_1026.xlsx; PDF 200, 101580 byte</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -4498,7 +4509,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <p>FR-29</p></td>
 <td>Xuất báo cáo thống kê theo lớp ra PDF và Excel</td>
 <td>Tải file tên ThongKeSinhVien_yyyyMMdd_HHmm</td>
-<td>PDF 200, ThongKeSinhVien_20261111_2224.pdf; Excel 200, 7533 byte</td>
+<td>PDF 200, ThongKeSinhVien_20261112_1026.pdf; Excel 200, 7532 byte</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -4651,7 +4662,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <p>NFR-07, NFR-08</p></td>
 <td>Tìm mật khẩu thử trong nội dung nhật ký</td>
 <td>Nhật ký không chứa mật khẩu</td>
-<td>77 bản ghi mới nhất; chứa mật khẩu: 0</td>
+<td>78 bản ghi mới nhất; chứa mật khẩu: 0</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -4701,7 +4712,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>NFR-02</td>
 <td>Đo thời gian phản hồi danh sách và thống kê với khoảng 1.000 sinh viên (Admin)</td>
 <td>Mọi yêu cầu dưới 2 giây</td>
-<td>Lâu nhất (trong 5 lần) của 4 API: 15 ms, 10 ms, 4 ms, 10 ms</td>
+<td>Lâu nhất (trong 5 lần) của 4 API: 6 ms, 4 ms, 5 ms, 12 ms</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -4805,10 +4816,10 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>TC150</td>
 <td><p>UC18</p>
 <p>FR-22</p></td>
-<td>Tìm "duc giang" và "Vương Đức Giang" (chữ Đ tiếng Việt) để ra hồ sơ "Vương Ðức Giang" trong dữ liệu mẫu (chữ Ð U+00D0)</td>
+<td>Tìm "duc giang" và "Vương Đức Giang" để ra hồ sơ 22010993, trước khi sửa họ tên lưu bằng chữ Ð (U+00D0) là "Vương Ðức Giang"</td>
 <td>Tìm thấy hồ sơ 22010993</td>
-<td>"duc giang": 0 kết quả; "Vương Đức Giang": 0 kết quả; tìm "vuong" thấy hồ sơ: 22010993 Vương Ðức Giang</td>
-<td>Không đạt</td>
+<td>"duc giang": 1 kết quả; "Vương Đức Giang": 1 kết quả</td>
+<td>Đạt</td>
 </tr>
 <tr>
 <td>TC151</td>
@@ -4856,7 +4867,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>NFR-06</td>
 <td>Chạy lại toàn bộ 140 ca TC001 – TC140 trên Google Chrome</td>
 <td>Kết quả giống trên Microsoft Edge</td>
-<td>Chrome: 139/140 ca đạt; kết quả từng ca giống Edge: có</td>
+<td>Chrome: 140/140 ca đạt; kết quả từng ca giống Edge: có</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -4864,7 +4875,43 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>NFR-06</td>
 <td>Chạy lại toàn bộ 140 ca TC001 – TC140 trên Mozilla Firefox 160</td>
 <td>Kết quả giống trên Microsoft Edge</td>
-<td>Firefox: 139/140 ca đạt; kết quả từng ca giống Edge: có</td>
+<td>Firefox: 140/140 ca đạt; kết quả từng ca giống Edge: có</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC158</td>
+<td><p>UC19-4a</p>
+<p>FR-24, FR-13</p></td>
+<td>Gửi đồng thời 2 yêu cầu thêm Khoa DTKH</td>
+<td>Một yêu cầu thành công, yêu cầu còn lại HTTP 409</td>
+<td>HTTP 200 và 409 (Mã khoa 'DTKH' đã tồn tại hoặc đã từng được sử dụng.); số bản ghi: 1</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC159</td>
+<td><p>UC19-4a</p>
+<p>FR-24, FR-13</p></td>
+<td>Gửi đồng thời 2 yêu cầu thêm Khóa K2021</td>
+<td>Một yêu cầu thành công, yêu cầu còn lại HTTP 409</td>
+<td>HTTP 200 và 409 (Mã khóa 'K2021' đã tồn tại hoặc đã từng được sử dụng.); số bản ghi: 1</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC160</td>
+<td><p>UC19-4a</p>
+<p>FR-24, FR-13</p></td>
+<td>Gửi đồng thời 2 yêu cầu thêm Lớp CNTT25Z</td>
+<td>Một yêu cầu thành công, yêu cầu còn lại HTTP 409</td>
+<td>HTTP 200 và 409 (Mã lớp 'CNTT25Z' hoặc tên lớp 'Lớp thử đồng thời' đã tồn tại.); số bản ghi: 1</td>
+<td>Đạt</td>
+</tr>
+<tr>
+<td>TC161</td>
+<td><p>UC06-4a</p>
+<p>FR-01, FR-13</p></td>
+<td>Gửi đồng thời 2 form tạo tài khoản Giáo vụ cùng tên đăng nhập gvdongthoi3</td>
+<td>Một form tạo thành công (chuyển về danh sách tài khoản), form còn lại báo tên đăng nhập đã tồn tại; không lỗi 500</td>
+<td>HTTP 200 và 200; tạo thành công: 1; báo trùng: 1; số tài khoản: 1</td>
 <td>Đạt</td>
 </tr>
 </tbody>
@@ -4903,8 +4950,8 @@ Bảng sau đối chiếu các yêu cầu kỹ thuật của bài tập lớn (m
 
 | **Mục tiêu** | **Kết quả** | **Minh chứng** |
 |----|----|----|
-| MT1: CSDL tập trung, mã SV duy nhất, hồ sơ và tài khoản cùng giao dịch, xóa mềm, kiểm soát chuyển trạng thái và chuyển lớp | Đạt. Riêng trường hợp hai yêu cầu thêm cùng mã đến đồng thời trả lỗi 500 thay vì 409 (TC045), dữ liệu vẫn nhất quán | Các ca UC09 – UC16, UC19 |
-| MT2: Danh sách, tìm kiếm không dấu bằng Ajax, thống kê, xuất Excel/PDF, nhập Excel có báo lỗi từng dòng | Đạt. Riêng tìm kiếm bỏ sót họ tên viết bằng chữ Ð (U+00D0) có trong 71 hồ sơ mẫu (TC150) | Các ca UC17, UC18, UC20 – UC23 |
+| MT1: CSDL tập trung, mã SV duy nhất, hồ sơ và tài khoản cùng giao dịch, xóa mềm, kiểm soát chuyển trạng thái và chuyển lớp | Đạt. Lỗi thêm đồng thời cùng mã trả 500 thay vì 409 đã được sửa và kiểm thử lại (TC045, TC158, TC161) | Các ca UC09 – UC16, UC19 |
+| MT2: Danh sách, tìm kiếm không dấu bằng Ajax, thống kê, xuất Excel/PDF, nhập Excel có báo lỗi từng dòng | Đạt. Lỗi tìm kiếm bỏ sót họ tên viết bằng chữ Ð (U+00D0) đã được sửa và kiểm thử lại (TC150) | Các ca UC17, UC18, UC20 – UC23 |
 | MT3: Identity, ba vai trò, phạm vi theo khoa ở mọi endpoint, nhật ký thao tác, chống dò mật khẩu | Đạt | Các ca UC01 – UC08, UC24, NFR-01 |
 | MT4: Cổng sinh viên xem hồ sơ, cập nhật liên hệ, đổi mật khẩu; giao diện responsive | Đạt | Các ca UC03 – UC05, NFR-03 |
 
@@ -4912,23 +4959,21 @@ Bảng sau đối chiếu các yêu cầu kỹ thuật của bài tập lớn (m
 
 - Xây dựng ứng dụng web Student Portal trên ASP.NET Core MVC đáp ứng 31/31 yêu cầu chức năng FR-01 – FR-31 của SRS, gồm 11 Controller, 9 dịch vụ (trong đó 3 dịch vụ dùng chung: phạm vi dữ liệu, tài khoản, nhật ký) và 9 file script riêng cho từng trang; mỗi FR đều có ít nhất một ca kiểm thử ở mục 4.5.
 - Phân quyền ba vai trò, phạm vi dữ liệu theo khoa áp dụng thống nhất ở tầng dịch vụ, kể cả xuất và nhập file.
-- Bộ 157 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 155 ca đạt; phát hiện và ghi nhận hai lỗi: xử lý đồng thời ở FR-13 và tìm kiếm chữ Ð ở FR-22.
+- Bộ 161 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 161 ca đạt; phát hiện hai lỗi (xử lý đồng thời ở FR-13, tìm kiếm chữ Ð ở FR-22), đã sửa và chạy lại để xác nhận.
 - Quy trình làm việc nhóm theo mã yêu cầu: tên nhánh và commit gắn FR/NFR, gộp qua Pull Request, kiểm tra chất lượng bằng SonarCloud Quality Gate.
 - Bộ tài liệu phân tích – thiết kế (Chương 2, 3) bám sát mã nguồn: tên Controller/Action, interface dùng chung, quy ước JSON và cấu trúc CSDL trong mã đúng với mục 3.2.
 
 ## 5.3. Hạn chế của hệ thống
 
-- Thêm cùng một mã sinh viên đồng thời từ hai yêu cầu trả HTTP 500 (TC045). Cách khắc phục: trong StudentService.CreateAsync bắt DbUpdateException có SqlException số 2627/2601 (trùng khóa) và chuyển thành NghiepVuException 409 "Mã sinh viên đã tồn tại"; áp dụng tương tự cho tạo tài khoản và danh mục.
 - Chu kỳ hỗ trợ của .NET 8 kết thúc ngày 10/11/2026. Trước khi triển khai thật cần nâng TargetFramework, các gói EF Core/Identity và global.json lên .NET 10, bản hỗ trợ dài hạn hiện hành.
 - Chưa có kiểm thử đơn vị và kiểm thử tích hợp trong solution; bộ kiểm thử ở mục 4.5 chạy ngoài quy trình build.
-- Tìm kiếm không dấu bỏ sót họ tên viết bằng chữ Ð (U+00D0) thay cho Đ (U+0110); dữ liệu mẫu có 71 hồ sơ như vậy (TC150). Cách khắc phục: trong TextHelper.BoDau đổi thêm ð thành d (sau ToLowerInvariant, Ð thành ð); khi lưu hồ sơ và khi nhập Excel, chuẩn hóa Ð thành Đ trong họ tên; sửa dữ liệu mẫu trong DbSeeder; tính lại cột HoTenKhongDau cho dữ liệu đã có.
 - Kiểm thử tải mới chạy trên máy phát triển.
 - Không có chức năng khôi phục mật khẩu qua email; người dùng quên mật khẩu phải liên hệ Admin hoặc Giáo vụ (theo phạm vi SRS).
 - Chưa có quản lý điểm, đăng ký học phần, tuyển sinh (ngoài phạm vi đề tài).
 
 ## 5.4. Hướng phát triển
 
-- Khắc phục lỗi xử lý đồng thời ở FR-13 và lỗi tìm kiếm chữ Ð ở FR-22; nâng cấp lên .NET 10.
+- Nâng cấp lên .NET 10.
 - Bổ sung project kiểm thử (xUnit) cho các quy tắc nghiệp vụ trong StudentService, ImportService, ScopeService và đưa bộ kiểm thử giao diện vào GitHub Actions.
 - Khôi phục mật khẩu qua email/OTP; đăng nhập một lần (SSO) với hệ thống của trường.
 - Biểu đồ thống kê trực quan trên trang Thống kê; lịch sử biến động hồ sơ theo từng sinh viên.

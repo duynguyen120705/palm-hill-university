@@ -8,8 +8,8 @@
 
 | **Mục tiêu** | **Kết quả** | **Minh chứng** |
 |----|----|----|
-| MT1: CSDL tập trung, mã SV duy nhất, hồ sơ và tài khoản cùng giao dịch, xóa mềm, kiểm soát chuyển trạng thái và chuyển lớp | Đạt. Riêng trường hợp hai yêu cầu thêm cùng mã đến đồng thời trả lỗi 500 thay vì 409 (TC045), dữ liệu vẫn nhất quán | Các ca UC09 – UC16, UC19 |
-| MT2: Danh sách, tìm kiếm không dấu bằng Ajax, thống kê, xuất Excel/PDF, nhập Excel có báo lỗi từng dòng | Đạt. Riêng tìm kiếm bỏ sót họ tên viết bằng chữ Ð (U+00D0) có trong 71 hồ sơ mẫu (TC150) | Các ca UC17, UC18, UC20 – UC23 |
+| MT1: CSDL tập trung, mã SV duy nhất, hồ sơ và tài khoản cùng giao dịch, xóa mềm, kiểm soát chuyển trạng thái và chuyển lớp | Đạt. Lỗi thêm đồng thời cùng mã trả 500 thay vì 409 đã được sửa và kiểm thử lại (TC045, TC158, TC161) | Các ca UC09 – UC16, UC19 |
+| MT2: Danh sách, tìm kiếm không dấu bằng Ajax, thống kê, xuất Excel/PDF, nhập Excel có báo lỗi từng dòng | Đạt. Lỗi tìm kiếm bỏ sót họ tên viết bằng chữ Ð (U+00D0) đã được sửa và kiểm thử lại (TC150) | Các ca UC17, UC18, UC20 – UC23 |
 | MT3: Identity, ba vai trò, phạm vi theo khoa ở mọi endpoint, nhật ký thao tác, chống dò mật khẩu | Đạt | Các ca UC01 – UC08, UC24, NFR-01 |
 | MT4: Cổng sinh viên xem hồ sơ, cập nhật liên hệ, đổi mật khẩu; giao diện responsive | Đạt | Các ca UC03 – UC05, NFR-03 |
 
@@ -17,23 +17,21 @@
 
 - Xây dựng ứng dụng web Student Portal trên ASP.NET Core MVC đáp ứng 31/31 yêu cầu chức năng FR-01 – FR-31 của SRS, gồm 11 Controller, 9 dịch vụ (trong đó 3 dịch vụ dùng chung: phạm vi dữ liệu, tài khoản, nhật ký) và 9 file script riêng cho từng trang; mỗi FR đều có ít nhất một ca kiểm thử ở mục 4.5.
 - Phân quyền ba vai trò, phạm vi dữ liệu theo khoa áp dụng thống nhất ở tầng dịch vụ, kể cả xuất và nhập file.
-- Bộ 157 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 155 ca đạt; phát hiện và ghi nhận hai lỗi: xử lý đồng thời ở FR-13 và tìm kiếm chữ Ð ở FR-22.
+- Bộ 161 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 161 ca đạt; phát hiện hai lỗi (xử lý đồng thời ở FR-13, tìm kiếm chữ Ð ở FR-22), đã sửa và chạy lại để xác nhận.
 - Quy trình làm việc nhóm theo mã yêu cầu: tên nhánh và commit gắn FR/NFR, gộp qua Pull Request, kiểm tra chất lượng bằng SonarCloud Quality Gate.
 - Bộ tài liệu phân tích – thiết kế (Chương 2, 3) bám sát mã nguồn: tên Controller/Action, interface dùng chung, quy ước JSON và cấu trúc CSDL trong mã đúng với mục 3.2.
 
 ## 5.3. Hạn chế của hệ thống
 
-- Thêm cùng một mã sinh viên đồng thời từ hai yêu cầu trả HTTP 500 (TC045). Cách khắc phục: trong StudentService.CreateAsync bắt DbUpdateException có SqlException số 2627/2601 (trùng khóa) và chuyển thành NghiepVuException 409 "Mã sinh viên đã tồn tại"; áp dụng tương tự cho tạo tài khoản và danh mục.
 - Chu kỳ hỗ trợ của .NET 8 kết thúc ngày 10/11/2026. Trước khi triển khai thật cần nâng TargetFramework, các gói EF Core/Identity và global.json lên .NET 10, bản hỗ trợ dài hạn hiện hành.
 - Chưa có kiểm thử đơn vị và kiểm thử tích hợp trong solution; bộ kiểm thử ở mục 4.5 chạy ngoài quy trình build.
-- Tìm kiếm không dấu bỏ sót họ tên viết bằng chữ Ð (U+00D0) thay cho Đ (U+0110); dữ liệu mẫu có 71 hồ sơ như vậy (TC150). Cách khắc phục: trong TextHelper.BoDau đổi thêm ð thành d (sau ToLowerInvariant, Ð thành ð); khi lưu hồ sơ và khi nhập Excel, chuẩn hóa Ð thành Đ trong họ tên; sửa dữ liệu mẫu trong DbSeeder; tính lại cột HoTenKhongDau cho dữ liệu đã có.
 - Kiểm thử tải mới chạy trên máy phát triển.
 - Không có chức năng khôi phục mật khẩu qua email; người dùng quên mật khẩu phải liên hệ Admin hoặc Giáo vụ (theo phạm vi SRS).
 - Chưa có quản lý điểm, đăng ký học phần, tuyển sinh (ngoài phạm vi đề tài).
 
 ## 5.4. Hướng phát triển
 
-- Khắc phục lỗi xử lý đồng thời ở FR-13 và lỗi tìm kiếm chữ Ð ở FR-22; nâng cấp lên .NET 10.
+- Nâng cấp lên .NET 10.
 - Bổ sung project kiểm thử (xUnit) cho các quy tắc nghiệp vụ trong StudentService, ImportService, ScopeService và đưa bộ kiểm thử giao diện vào GitHub Actions.
 - Khôi phục mật khẩu qua email/OTP; đăng nhập một lần (SSO) với hệ thống của trường.
 - Biểu đồ thống kê trực quan trên trang Thống kê; lịch sử biến động hồ sơ theo từng sinh viên.

@@ -3443,7 +3443,7 @@ Mục 4.5 có 29 ca của UC20 – UC23, tất cả đều đạt. Một số k�
 
 Bộ kiểm thử được xây dựng từ đặc tả Use Case ở mục 3.1.5: mỗi luồng sự kiện chính và mỗi luồng thay thế (4a, 4b, …) có ít nhất một ca, cộng thêm các ca cho quy tắc nghiệp vụ, nhập Excel, đối chiếu nội dung file xuất với mẫu BM03, BM04 và yêu cầu phi chức năng NFR-01 – NFR-03, NFR-06. Cột "UC / FR" ghi nhánh đặc tả mà ca kiểm tra (ví dụ UC09-4b là luồng thay thế 4b của UC09) và yêu cầu tương ứng.
 
-Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main, với một CSDL thử riêng được seed lại từ đầu (1.000 sinh viên). Các ca được thực hiện tự động trên trình duyệt Microsoft Edge (chế độ headless) qua giao thức DevTools: thao tác trên giao diện như người dùng, gọi trực tiếp các API Ajax để thử đường vượt quyền và dữ liệu sai, dùng thêm một trình duyệt thứ hai cho các ca cần hai phiên đăng nhập cùng lúc. File Excel, PDF xuất ra được đọc lại bằng thư viện openpyxl và PyMuPDF để so từng ô. Kiểm thử tải dùng một chương trình Node.js tạo nhiều người dùng ảo gửi yêu cầu song song. Ca hết phiên được chờ thật hơn 30 phút. Toàn bộ 140 ca chức năng được chạy lại trên Google Chrome. Kết quả: 154/156 ca đạt.
+Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main, với một CSDL thử riêng được seed lại từ đầu (1.000 sinh viên). Các ca được thực hiện tự động trên trình duyệt Microsoft Edge (chế độ headless) qua giao thức DevTools: thao tác trên giao diện như người dùng, gọi trực tiếp các API Ajax để thử đường vượt quyền và dữ liệu sai, dùng thêm một trình duyệt thứ hai cho các ca cần hai phiên đăng nhập cùng lúc. File Excel, PDF xuất ra được đọc lại bằng thư viện openpyxl và PyMuPDF để so từng ô. Kiểm thử tải dùng một chương trình Node.js tạo nhiều người dùng ảo gửi yêu cầu song song. Ca hết phiên được chờ thật hơn 30 phút. Toàn bộ 140 ca chức năng được chạy lại trên Google Chrome và trên Mozilla Firefox 160 (giao thức WebDriver BiDi). Kết quả: 155/157 ca đạt.
 
 | **Nhóm** | **Use Case / yêu cầu** | **Số ca** | **Đạt** |
 |----|----|:--:|:--:|
@@ -3451,8 +3451,8 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 | Hồ sơ và tài khoản sinh viên | UC09 – UC16 | 47 | 46 |
 | Danh sách, tìm kiếm, danh mục | UC17 – UC19 | 25 | 24 |
 | Thống kê, xuất, nhập Excel, nhật ký | UC20 – UC24 | 34 | 34 |
-| Bảo mật và phi chức năng | FR-08, NFR-01 – NFR-03, NFR-06 | 14 | 14 |
-| Tổng |  | 156 | 154 |
+| Bảo mật và phi chức năng | FR-08, NFR-01 – NFR-03, NFR-06 | 15 | 15 |
+| Tổng |  | 157 | 155 |
 
 <table>
 <thead>
@@ -4815,7 +4815,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>NFR-02</td>
 <td>Kiểm thử tải: 10 người dùng đồng thời trong 30 giây gọi danh sách, tìm kiếm, thống kê, chi tiết</td>
 <td>Không có yêu cầu lỗi; thời gian phản hồi p95 dưới 2 giây</td>
-<td>38.562 yêu cầu (1285,4 yêu cầu/giây), 0 lỗi; p50 6 ms, p95 11 ms, lâu nhất 288 ms</td>
+<td>38.562 yêu cầu (1.285,4 yêu cầu/giây), 0 lỗi; p50 6 ms, p95 11 ms, lâu nhất 288 ms</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -4823,7 +4823,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>NFR-02</td>
 <td>Kiểm thử tải: 25 người dùng đồng thời trong 30 giây gọi danh sách, tìm kiếm, thống kê, chi tiết</td>
 <td>Không có yêu cầu lỗi; thời gian phản hồi p95 dưới 2 giây</td>
-<td>45.450 yêu cầu (1515/giây), 0 lỗi; p50 11 ms, p95 21 ms, lâu nhất 396 ms</td>
+<td>45.450 yêu cầu (1.515 yêu cầu/giây), 0 lỗi; p50 11 ms, p95 21 ms, lâu nhất 396 ms</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -4831,7 +4831,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>NFR-02</td>
 <td>Kiểm thử tải: 50 người dùng đồng thời trong 30 giây gọi danh sách, tìm kiếm, thống kê, chi tiết</td>
 <td>Không có yêu cầu lỗi; thời gian phản hồi p95 dưới 2 giây</td>
-<td>48.937 yêu cầu (1631,2 yêu cầu/giây), 0 lỗi; p50 21 ms, p95 47 ms, lâu nhất 474 ms</td>
+<td>48.937 yêu cầu (1.631,2 yêu cầu/giây), 0 lỗi; p50 21 ms, p95 47 ms, lâu nhất 474 ms</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -4859,6 +4859,14 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>Chrome: 139/140 ca đạt; kết quả từng ca giống Edge: có</td>
 <td>Đạt</td>
 </tr>
+<tr>
+<td>TC157</td>
+<td>NFR-06</td>
+<td>Chạy lại toàn bộ 140 ca TC001 – TC140 trên Mozilla Firefox 160</td>
+<td>Kết quả giống trên Microsoft Edge</td>
+<td>Firefox: 139/140 ca đạt; kết quả từng ca giống Edge: có</td>
+<td>Đạt</td>
+</tr>
 </tbody>
 </table>
 
@@ -4872,7 +4880,6 @@ Kết quả kiểm thử tải (máy phát triển, ứng dụng và chương tr
 
 Phạm vi kiểm thử còn thiếu:
 
-- Chưa kiểm thử trên Firefox (NFR-06) vì máy kiểm thử chưa cài Firefox; mới chạy trên Edge và Chrome, cùng nhân Chromium.
 - Kiểm thử tải chạy trên máy phát triển, chưa chạy trên máy demo hay máy chủ triển khai thật.
 - Mã nguồn chưa có project kiểm thử đơn vị hoặc kiểm thử tích hợp chạy tự động trong quy trình build.
 
@@ -4905,7 +4912,7 @@ Bảng sau đối chiếu các yêu cầu kỹ thuật của bài tập lớn (m
 
 - Xây dựng ứng dụng web Student Portal trên ASP.NET Core MVC đáp ứng 31/31 yêu cầu chức năng FR-01 – FR-31 của SRS, gồm 11 Controller, 9 dịch vụ (trong đó 3 dịch vụ dùng chung: phạm vi dữ liệu, tài khoản, nhật ký) và 9 file script riêng cho từng trang; mỗi FR đều có ít nhất một ca kiểm thử ở mục 4.5.
 - Phân quyền ba vai trò, phạm vi dữ liệu theo khoa áp dụng thống nhất ở tầng dịch vụ, kể cả xuất và nhập file.
-- Bộ 156 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 154 ca đạt; phát hiện và ghi nhận hai lỗi: xử lý đồng thời ở FR-13 và tìm kiếm chữ Ð ở FR-22.
+- Bộ 157 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 155 ca đạt; phát hiện và ghi nhận hai lỗi: xử lý đồng thời ở FR-13 và tìm kiếm chữ Ð ở FR-22.
 - Quy trình làm việc nhóm theo mã yêu cầu: tên nhánh và commit gắn FR/NFR, gộp qua Pull Request, kiểm tra chất lượng bằng SonarCloud Quality Gate.
 - Bộ tài liệu phân tích – thiết kế (Chương 2, 3) bám sát mã nguồn: tên Controller/Action, interface dùng chung, quy ước JSON và cấu trúc CSDL trong mã đúng với mục 3.2.
 
@@ -4915,7 +4922,7 @@ Bảng sau đối chiếu các yêu cầu kỹ thuật của bài tập lớn (m
 - Chu kỳ hỗ trợ của .NET 8 kết thúc ngày 10/11/2026. Trước khi triển khai thật cần nâng TargetFramework, các gói EF Core/Identity và global.json lên .NET 10, bản hỗ trợ dài hạn hiện hành.
 - Chưa có kiểm thử đơn vị và kiểm thử tích hợp trong solution; bộ kiểm thử ở mục 4.5 chạy ngoài quy trình build.
 - Tìm kiếm không dấu bỏ sót họ tên viết bằng chữ Ð (U+00D0) thay cho Đ (U+0110); dữ liệu mẫu có 71 hồ sơ như vậy (TC150). Cách khắc phục: trong TextHelper.BoDau đổi thêm ð thành d (sau ToLowerInvariant, Ð thành ð); khi lưu hồ sơ và khi nhập Excel, chuẩn hóa Ð thành Đ trong họ tên; sửa dữ liệu mẫu trong DbSeeder; tính lại cột HoTenKhongDau cho dữ liệu đã có.
-- Chưa kiểm thử trên Firefox; kiểm thử tải mới chạy trên máy phát triển.
+- Kiểm thử tải mới chạy trên máy phát triển.
 - Không có chức năng khôi phục mật khẩu qua email; người dùng quên mật khẩu phải liên hệ Admin hoặc Giáo vụ (theo phạm vi SRS).
 - Chưa có quản lý điểm, đăng ký học phần, tuyển sinh (ngoài phạm vi đề tài).
 

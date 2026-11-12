@@ -17,7 +17,7 @@
 
 - Xây dựng ứng dụng web Student Portal trên ASP.NET Core MVC đáp ứng 31/31 yêu cầu chức năng FR-01 – FR-31 của SRS, gồm 11 Controller, 9 dịch vụ (trong đó 3 dịch vụ dùng chung: phạm vi dữ liệu, tài khoản, nhật ký) và 9 file script riêng cho từng trang; mỗi FR đều có ít nhất một ca kiểm thử ở mục 4.5.
 - Phân quyền ba vai trò, phạm vi dữ liệu theo khoa áp dụng thống nhất ở tầng dịch vụ, kể cả xuất và nhập file.
-- Bộ 156 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 154 ca đạt; phát hiện và ghi nhận hai lỗi: xử lý đồng thời ở FR-13 và tìm kiếm chữ Ð ở FR-22.
+- Bộ 157 ca kiểm thử xây dựng từ đặc tả 24 Use Case, chạy tự động trên trình duyệt, 155 ca đạt; phát hiện và ghi nhận hai lỗi: xử lý đồng thời ở FR-13 và tìm kiếm chữ Ð ở FR-22.
 - Quy trình làm việc nhóm theo mã yêu cầu: tên nhánh và commit gắn FR/NFR, gộp qua Pull Request, kiểm tra chất lượng bằng SonarCloud Quality Gate.
 - Bộ tài liệu phân tích – thiết kế (Chương 2, 3) bám sát mã nguồn: tên Controller/Action, interface dùng chung, quy ước JSON và cấu trúc CSDL trong mã đúng với mục 3.2.
 
@@ -27,7 +27,7 @@
 - Chu kỳ hỗ trợ của .NET 8 kết thúc ngày 10/11/2026. Trước khi triển khai thật cần nâng TargetFramework, các gói EF Core/Identity và global.json lên .NET 10, bản hỗ trợ dài hạn hiện hành.
 - Chưa có kiểm thử đơn vị và kiểm thử tích hợp trong solution; bộ kiểm thử ở mục 4.5 chạy ngoài quy trình build.
 - Tìm kiếm không dấu bỏ sót họ tên viết bằng chữ Ð (U+00D0) thay cho Đ (U+0110); dữ liệu mẫu có 71 hồ sơ như vậy (TC150). Cách khắc phục: trong TextHelper.BoDau đổi thêm ð thành d (sau ToLowerInvariant, Ð thành ð); khi lưu hồ sơ và khi nhập Excel, chuẩn hóa Ð thành Đ trong họ tên; sửa dữ liệu mẫu trong DbSeeder; tính lại cột HoTenKhongDau cho dữ liệu đã có.
-- Chưa kiểm thử trên Firefox; kiểm thử tải mới chạy trên máy phát triển.
+- Kiểm thử tải mới chạy trên máy phát triển.
 - Không có chức năng khôi phục mật khẩu qua email; người dùng quên mật khẩu phải liên hệ Admin hoặc Giáo vụ (theo phạm vi SRS).
 - Chưa có quản lý điểm, đăng ký học phần, tuyển sinh (ngoài phạm vi đề tài).
 

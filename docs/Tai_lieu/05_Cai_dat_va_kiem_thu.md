@@ -655,7 +655,7 @@ Mục 4.5 có 29 ca của UC20 – UC23, tất cả đều đạt. Một số k�
 
 Bộ kiểm thử được xây dựng từ đặc tả Use Case ở mục 3.1.5: mỗi luồng sự kiện chính và mỗi luồng thay thế (4a, 4b, …) có ít nhất một ca, cộng thêm các ca cho quy tắc nghiệp vụ, nhập Excel, đối chiếu nội dung file xuất với mẫu BM03, BM04 và yêu cầu phi chức năng NFR-01 – NFR-03, NFR-06. Cột "UC / FR" ghi nhánh đặc tả mà ca kiểm tra (ví dụ UC09-4b là luồng thay thế 4b của UC09) và yêu cầu tương ứng.
 
-Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main, với một CSDL thử riêng được seed lại từ đầu (1.000 sinh viên). Các ca được thực hiện tự động trên trình duyệt Microsoft Edge (chế độ headless) qua giao thức DevTools: thao tác trên giao diện như người dùng, gọi trực tiếp các API Ajax để thử đường vượt quyền và dữ liệu sai, dùng thêm một trình duyệt thứ hai cho các ca cần hai phiên đăng nhập cùng lúc. File Excel, PDF xuất ra được đọc lại bằng thư viện openpyxl và PyMuPDF để so từng ô. Kiểm thử tải dùng một chương trình Node.js tạo nhiều người dùng ảo gửi yêu cầu song song. Ca hết phiên được chờ thật hơn 30 phút. Toàn bộ 140 ca chức năng được chạy lại trên Google Chrome. Kết quả: 154/156 ca đạt.
+Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main, với một CSDL thử riêng được seed lại từ đầu (1.000 sinh viên). Các ca được thực hiện tự động trên trình duyệt Microsoft Edge (chế độ headless) qua giao thức DevTools: thao tác trên giao diện như người dùng, gọi trực tiếp các API Ajax để thử đường vượt quyền và dữ liệu sai, dùng thêm một trình duyệt thứ hai cho các ca cần hai phiên đăng nhập cùng lúc. File Excel, PDF xuất ra được đọc lại bằng thư viện openpyxl và PyMuPDF để so từng ô. Kiểm thử tải dùng một chương trình Node.js tạo nhiều người dùng ảo gửi yêu cầu song song. Ca hết phiên được chờ thật hơn 30 phút. Toàn bộ 140 ca chức năng được chạy lại trên Google Chrome và trên Mozilla Firefox 160 (giao thức WebDriver BiDi). Kết quả: 155/157 ca đạt.
 
 | **Nhóm** | **Use Case / yêu cầu** | **Số ca** | **Đạt** |
 |----|----|:--:|:--:|
@@ -663,8 +663,8 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 | Hồ sơ và tài khoản sinh viên | UC09 – UC16 | 47 | 46 |
 | Danh sách, tìm kiếm, danh mục | UC17 – UC19 | 25 | 24 |
 | Thống kê, xuất, nhập Excel, nhật ký | UC20 – UC24 | 34 | 34 |
-| Bảo mật và phi chức năng | FR-08, NFR-01 – NFR-03, NFR-06 | 14 | 14 |
-| Tổng |  | 156 | 154 |
+| Bảo mật và phi chức năng | FR-08, NFR-01 – NFR-03, NFR-06 | 15 | 15 |
+| Tổng |  | 157 | 155 |
 
 <table>
 <thead>
@@ -2027,7 +2027,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>NFR-02</td>
 <td>Kiểm thử tải: 10 người dùng đồng thời trong 30 giây gọi danh sách, tìm kiếm, thống kê, chi tiết</td>
 <td>Không có yêu cầu lỗi; thời gian phản hồi p95 dưới 2 giây</td>
-<td>38.562 yêu cầu (1285,4 yêu cầu/giây), 0 lỗi; p50 6 ms, p95 11 ms, lâu nhất 288 ms</td>
+<td>38.562 yêu cầu (1.285,4 yêu cầu/giây), 0 lỗi; p50 6 ms, p95 11 ms, lâu nhất 288 ms</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -2035,7 +2035,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>NFR-02</td>
 <td>Kiểm thử tải: 25 người dùng đồng thời trong 30 giây gọi danh sách, tìm kiếm, thống kê, chi tiết</td>
 <td>Không có yêu cầu lỗi; thời gian phản hồi p95 dưới 2 giây</td>
-<td>45.450 yêu cầu (1515/giây), 0 lỗi; p50 11 ms, p95 21 ms, lâu nhất 396 ms</td>
+<td>45.450 yêu cầu (1.515 yêu cầu/giây), 0 lỗi; p50 11 ms, p95 21 ms, lâu nhất 396 ms</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -2043,7 +2043,7 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>NFR-02</td>
 <td>Kiểm thử tải: 50 người dùng đồng thời trong 30 giây gọi danh sách, tìm kiếm, thống kê, chi tiết</td>
 <td>Không có yêu cầu lỗi; thời gian phản hồi p95 dưới 2 giây</td>
-<td>48.937 yêu cầu (1631,2 yêu cầu/giây), 0 lỗi; p50 21 ms, p95 47 ms, lâu nhất 474 ms</td>
+<td>48.937 yêu cầu (1.631,2 yêu cầu/giây), 0 lỗi; p50 21 ms, p95 47 ms, lâu nhất 474 ms</td>
 <td>Đạt</td>
 </tr>
 <tr>
@@ -2071,6 +2071,14 @@ Nhóm chạy các ca ngày 11 – 12/11/2026 trên bản build từ nhánh main,
 <td>Chrome: 139/140 ca đạt; kết quả từng ca giống Edge: có</td>
 <td>Đạt</td>
 </tr>
+<tr>
+<td>TC157</td>
+<td>NFR-06</td>
+<td>Chạy lại toàn bộ 140 ca TC001 – TC140 trên Mozilla Firefox 160</td>
+<td>Kết quả giống trên Microsoft Edge</td>
+<td>Firefox: 139/140 ca đạt; kết quả từng ca giống Edge: có</td>
+<td>Đạt</td>
+</tr>
 </tbody>
 </table>
 
@@ -2084,7 +2092,6 @@ Kết quả kiểm thử tải (máy phát triển, ứng dụng và chương tr
 
 Phạm vi kiểm thử còn thiếu:
 
-- Chưa kiểm thử trên Firefox (NFR-06) vì máy kiểm thử chưa cài Firefox; mới chạy trên Edge và Chrome, cùng nhân Chromium.
 - Kiểm thử tải chạy trên máy phát triển, chưa chạy trên máy demo hay máy chủ triển khai thật.
 - Mã nguồn chưa có project kiểm thử đơn vị hoặc kiểm thử tích hợp chạy tự động trong quy trình build.
 
